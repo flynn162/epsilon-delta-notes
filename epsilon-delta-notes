@@ -1,0 +1,42 @@
+#!/usr/bin/python3
+
+from argparse import ArgumentParser
+from pathlib import Path
+import os
+import subprocess
+import signal
+
+parser = ArgumentParser(description='Epsilon-Delta Notes launcher')
+parser.add_argument('db', nargs='?', help='the database (notes) to load')
+parser.add_argument('-i', '--img-dir', help='image directory')
+parser.add_argument('-c', '--config', help='config file')
+parser.add_argument('-b', '--bind', help='address to bind to')
+parser.add_argument('-p', '--port', help='port', type=int)
+args = parser.parse_args()
+
+base_dir = Path(__file__).resolve().parent
+os.environ['FLASK_APP'] = str(base_dir / 'application.py')
+
+# must overwrite this environment variable
+os.environ['EDN_DB_FILE'] = args.db or ''
+
+# if -c is not specified, the use the original env. var. value
+if args.config:
+    os.environ['EDN_CONFIG_FILE'] = args.config
+if args.img_dir:
+    os.environ['EDN_IMG_DIR'] = args.img_dir
+
+bind = args.bind or '127.0.0.1'
+port = 5000
+if args.port is not None:
+    if args.port < 1 or args.port > 65535:
+        raise ValueError('Port range')
+    port = args.port
+
+process = subprocess.Popen(['flask', 'run',
+                            '--port', str(port),
+                            '--host', bind])
+try:
+    process.wait()
+except KeyboardInterrupt:
+    process.send_signal(signal.SIGINT)

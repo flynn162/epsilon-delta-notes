@@ -1,0 +1,76 @@
+{% extends "with-sidebar.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/katex-dist/katex.min.css">
+<script defer src="/static/katex-dist/katex.min.js"></script>
+<script defer src="/static/load-math.js"></script>
+{% endblock %}
+
+{% block left %}
+
+{%- for html in sidebar_html -%}
+{{ html|safe }}
+{%- endfor -%}
+
+{% endblock %}
+
+{% block right %}
+<h1 class="has-right-margin">{{ title }}</h1>
+<!-- current path -->
+<div class="nav has-right-margin" id="path">
+  <p class="visually-hidden">
+    [[ Your current path is: ]]
+  </p>
+  {% for name, link in directory_of_page %}
+  <a href="{{ link }}">{{ name }}</a>
+  <span class="sep">/</span>
+  {% endfor %}
+</div>
+<!-- navigating: previous and next -->
+<div class="nav has-right-margin" id="prev-next">
+  <p class="visually-hidden">
+    [[ Sibling articles are: ]]
+  </p>
+  <!-- previous article -->
+  {% if prev_article is not none %}
+  <span>Prev:
+    <a href="{{ prev_article[1] }}">{{ prev_article[0] }}</a>
+  </span>
+  {% endif %}
+  <!-- separator -->
+  {% if prev_article is not none and next_article is not none %}
+  <span class="sep">|</span>
+  {% endif %}
+  <!-- next article -->
+  {% if next_article is not none %}
+  <span>Next:
+    <a href="{{ next_article[1] }}">{{ next_article[0] }}</a>
+  </span>
+  {% endif %}
+</div>
+
+<p class="visually-hidden" id="main-content-anchor">&nbsp;</p>
+
+<div class="content">
+  <div class="has-right-margin">
+  {%- for html in notes_html -%}
+  {{ html|safe }}
+  {%- endfor -%}
+  </div>
+</div>
+
+<div id="footer" class="nav has-right-margin">
+  <p class="visually-hidden">
+    [[ End of page, some meta-information follows: ]]
+  </p>
+
+  <span>Last modified {{ date_modified }}</span>
+  <span class="sep">|</span>
+  Powered by
+  <a href="#">Epsilon-Delta Notes</a>
+  <span class="sep">|</span>
+  <a href="#">Privacy Notice</a>
+  and
+  <a href="#">Terms of Service</a>
+</div>
+{% endblock %}

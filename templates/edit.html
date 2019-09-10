@@ -1,0 +1,99 @@
+{% extends "with-sidebar.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/edit.css">
+<link rel="stylesheet" href="/static/font-awesome-4-dist/css/font-awesome.min.css">
+<script src="/static/edit.js"></script>
+{% endblock %}
+
+{% block left %}
+
+You are editing X
+
+
+{%- for html in sidebar_html -%}
+{{ html|safe }}
+{%- endfor -%}
+
+{% endblock %}
+
+{% block right %}
+<div class="toolbar">
+  <span class="visually-hidden">[[ Toolbar starts ]]</span>
+  <!-- Add -->
+  <button type="button" title="Add new block" id="btn-add">
+    <i class="fa fa-fw fa-plus">
+      <span class="visually-hidden">add</span>
+    </i>
+  </button>
+  <!-- Up -->
+  <button type="button" title="Move block up" id="btn-up" disabled>
+    <i class="fa fa-fw fa-arrow-up">
+      <span class="visually-hidden">up</span>
+    </i>
+  </button>
+  <!-- Down -->
+  <button type="button" title="Move block down" id="btn-down" disabled>
+    <i class="fa fa-fw fa-arrow-down">
+      <span class="visually-hidden">down</span>
+    </i>
+  </button>
+  <!-- Delete -->
+  <button type="button" title="Delete block" id="btn-delete" disabled>
+    <i class="fa fa-fw fa-trash">
+      <span class="visually-hidden">delete</span>
+    </i>
+  </button>
+  <!-- to the right -->
+  <span class="right-floating">
+    <button form="form" type="submit" value="preview" class="highlight">Preview</button>
+    <button form="form" type="submit" value="submit">Submit</button>
+  </span>
+  <!-- -->
+  <span class="visually-hidden">[[ Toolbar ends ]]</span>
+</div>
+
+<!-- accessibility -->
+<p class="visually-hidden" id="main-content-anchor">&nbsp;</p>
+
+<div class="content">
+  <div class="has-right-margin">
+
+    <form id="form" action="{{ url_for('edit') }}" method="POST">
+      <!-- hidden field for writer lock -->
+      <input type="hidden" name="content_lock" value="{{ content_lock }}">
+
+      <!-- metadata of this article -->
+      <div class="metadata-container">
+        <label for="title">Title</label>
+        <input type="text" id="title" name="title">
+      </div>
+
+      <div class="metadata-container">
+        <label for="slur">Page ID</label>
+        <input type="text" id="slur" name="slur" value="some-page" class="hidden">
+      </div>
+
+      <!-- article content -->
+      <div id="textboxes">
+        <div class="textbox-container">
+          <textarea id="text-a" name="text">some text</textarea>
+          <input type="hidden" id="par_id_123" name="par_id" value="123">
+          <input type="hidden" id="par_id_123345" name="par_id" value="123345">
+        </div>
+      </div>
+
+      <!-- actions -->
+      <button type="submit" name="button" value="preview" class="highlight">
+        <i class="fa fa-fw fa-eye"></i>
+        Preview
+      </button>
+      <button type="submit" name="button" value="submit" class="regular">
+        Submit
+      </button>
+    </form>
+
+  </div>
+
+</div>
+{% endblock %}

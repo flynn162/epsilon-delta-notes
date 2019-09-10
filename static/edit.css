@@ -1,0 +1,131 @@
+:root {
+    --dark-purple: #341277;
+    --darker-purple: #280c60;
+}
+
+#right {
+    margin: 0px;
+    padding: 0px;
+}
+
+.toolbar {
+    background-color: white;
+    position: sticky;
+    top: 0px;
+    border-bottom: 1px solid #ddd;
+    box-shadow: #eee 1px 1px 5px;
+    margin-bottom: 1em;
+    padding: 0px 15px;
+}
+
+.right-floating {
+    float: right;
+}
+
+.content {
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-bottom: 15px;
+    padding-top: 0px;
+}
+
+button {
+    background-color: white;
+    border: #bbb 1px solid;
+    border-radius: 3px;
+    padding: 5px 10px;
+    margin-right: 3px;
+    margin-top: 5px;
+    cursor: pointer;
+}
+
+button:not([disabled]):hover {
+    background-color: #F0F0F0;
+}
+
+button:not([disabled]):active {
+    color: inherit;
+    background-color: #E0E0E0;
+}
+
+.toolbar button {
+    padding: 5px;
+    margin-top: 0px;
+    border: none;
+}
+
+button:disabled {
+    cursor: default;
+}
+
+button.highlight {
+    color: white;
+    background-color: var(--purple-fg);
+}
+
+button.highlight:not([disabled]):hover {
+    background-color: var(--dark-purple);
+}
+
+button.highlight:not([disabled]):active {
+    color: white;
+    background-color: var(--darker-purple);
+}
+
+.textbox-container, .textbox-container > textarea {
+    width: 100%;
+}
+
+form {
+    width: 100%;
+}
+
+form label {
+    display: inline-block;
+    text-align: right;
+    min-width: 10%;
+    margin-right: 1em;
+}
+
+#textboxes {
+    margin: 1em 0px;
+}
+
+.textbox-container > textarea {
+    padding: 10px;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
+    resize: vertical;
+    min-height: 5em;
+    max-height: 30em;
+}
+
+.textbox-container {
+    padding-left: 1em;
+    padding-right: 0.5em;
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
+    margin-top: 0.25em;
+    margin-bottom: 0.25em;
+}
+
+.textbox-container.selected {
+    background-color: var(--gold-bg);
+}
+
+.metadata-container {
+    display: flex;
+    margin-bottom: 0.5em;
+    align-items: baseline;
+}
+
+.metadata-container > input {
+    width: 100%;
+    padding: 3px;
+}
+
+#slur {
+    font-family: monospace;
+}
