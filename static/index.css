@@ -41,16 +41,19 @@ body {
     padding-left: 20px;
 }
 
-li.selected {
-    list-style-type: "↠";
-    /*"⯈";*/  /* black medium right pointing triangle centered */
-    color: var(--purple-fg);
-    font-weight: bold;
-}
-
 li.expanded {
     list-style-type: "🡪";
     /*"⯆";*/  /* black medium down pointing triangle centered */
+}
+
+li.selected, li.selected.expanded {
+    list-style-type: "↠";
+    /*"⯈";*/  /* black medium right pointing triangle centered */
+}
+
+li.selected > :not(ul), li.selected::marker {
+    color: var(--purple-fg);
+    font-weight: bold;
 }
 
 #left li {
