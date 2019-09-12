@@ -1,31 +1,29 @@
 import sqlite3
 from sqlite3 import DatabaseError, IntegrityError
 from pathlib import Path
-from functools import wraps
+from contextlib import contextmanager
 import glob
 
 res_dir = Path(__file__).absolute().parent
 
-def auto_rollback(func):
-    @wraps(func)
-    def result(self, *args, **kwargs):
-        c = self.conn.cursor()
-        c.execute('BEGIN')
-        try:
-            ret = func(self, c, *args, **kwargs)
-            c.execute('COMMIT')
-            return ret
-        except DatabaseError as e:
-            c.execute('ROLLBACK')
-            raise e from e
 
-    return result
 
 class Db:
     def __init__(self, address):
         self.conn = sqlite3.connect(address, isolation_level=None)
         c = self.conn.cursor()
         c.execute('PRAGMA foreign_keys = ON')
+
+    @contextmanager
+    def auto_rollback(self):
+        c = self.conn.cursor()
+        c.execute('BEGIN')
+        try:
+            yield c
+            c.execute('COMMIT')
+        except Exception as e:
+            c.execute('ROLLBACK')
+            raise e from e
 
     def create_tables(self):
         with open(res_dir / 'schema.sql', 'r', encoding='utf-8') as f:
