@@ -3,6 +3,8 @@ from parser import compile_notes, Parser
 from sidebar import TreeNode, compile_tree
 from pathlib import Path
 from sqlops import Db, is_valid_slur, slur_to_link
+from collections import deque
+import datetime
 
 toc_cols = ('id', 'parent_id', 'next_id', 'first_child_id', 'first_content_id',
             'slur', 'title', 'mtime')
@@ -97,6 +99,82 @@ class Tree:
         # we can have no child at all, so we need to check if last_row is None
         if last_row and last_row['next_id']:
             acc.append(TreeNode(None, '...'))
+
+def row_to_link_tuple(row):
+    if not row:
+        return None
+    else:
+        return row['title'], slur_to_link(row['slur'])
+
+class PageInfo:
+    def __init__(self, page_id):
+        self.acc = {}
+        self.page_id = page_id
+        self.content_rows = {}
+
+        self.tree = None
+        self.content_list = None
+        self.path = None
+        self.title = None
+        self.mtime_str = None
+        self.prev = None
+        self.next = None
+
+    def load_tree_row(self, row):
+        if row['next_id'] == self.page_id:
+            self.prev = row_to_link_tuple(item)
+
+        self.acc[row['id']] = row
+
+    def load_content_row(self, row):
+        self.content_rows[row['id']] = row
+
+    def reverse_path_iter(self):
+        row = self.acc[self.page_id]
+        while row is not None:
+            yield row_to_link_tuple(row)
+            if row['parent_id'] is None:
+                row = None
+            else:
+                row = self.acc.get(row['parent_id'])
+                if row is None:
+                    # broken tree
+                    yield ('...', '#')
+
+    def compute_path(self):
+        iterator = self.reverse_path_iter()
+        next(iterator)
+        result = deque()
+        for path_tuple in iterator:
+            result.appendleft(path_tuple)
+        return result
+
+    def content_row_iter(self):
+        id_start = self.acc[self.page_id]['first_content_id']
+        if id_start is None:
+            return
+
+        current = self.content_rows[id_start]
+        while current is not None:
+            yield current['content']
+            next_id = current['next_id']
+            if next_id is not None:
+                current = self.content_rows[next_id]
+            else:
+                current = None
+
+    def compute(self):
+        current_row = self.acc[self.page_id]
+        self.next = row_to_link_tuple(self.acc.get(current_row['next_id']))
+        self.title = current_row['title']
+
+        if current_row['mtime'] is not None:
+            self.mtime_str = datetime.utcfromtimestamp(current_row['mtime']) \
+                                     .strptime('%Y-%m-%d')
+
+        self.tree = Tree(self.acc, self.page_id).into()
+        self.path = self.compute_path()
+        self.content_list = self.content_row_iter()
 
 class DbTree(Db):
     @auto_rollback
