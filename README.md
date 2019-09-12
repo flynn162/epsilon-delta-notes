@@ -1,3 +1,9 @@
+# Epsilon-Delta Notes
+
+Made for college students, a tool for organizing your notes.
+
+![preview](readme_pics/zi.png)
+
 ## Problem statement
 
 - Paper based notes are not searchable. You can't change/expand paper notes you have taken a long time ago.
