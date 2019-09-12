@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS "toc" (
        "id" INTEGER NOT NULL UNIQUE,
        "parent_id" INTEGER,
        "next_id" INTEGER,
+       "first_child_id" INTEGER,
        "slur" TEXT NOT NULL UNIQUE,
        "title" TEXT NOT NULL,
        "mtime" INTEGER,
