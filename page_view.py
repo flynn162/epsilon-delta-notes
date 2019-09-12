@@ -1,9 +1,8 @@
 from flask import request, render_template, escape, Response
 from parser import compile_notes, Parser
 from sidebar import TreeNode, compile_tree
-import re
 from pathlib import Path
-from sqlops import Db, auto_rollback
+from sqlops import Db, is_valid_slur, slur_to_link
 
 def get_tree():
     return TreeNode('Notes',
@@ -11,46 +10,52 @@ def get_tree():
                     [TreeNode('Proof', 'p', None),
                      TreeNode('Calculus', 'calc',
                               [TreeNode("Green's Theorem", 'green', None, selected=True)])])
+toc_cols = ('id', 'parent_id', 'next_id', 'first_child_id', 'first_content_id',
+            'slur', 'title', 'mtime')
+toc_cols_fullname = map(lambda s: 'toc.{0} as {0}'.format(s), toc_cols)
 
-tree_cols = """
-toc.id as id, toc.parent_id as parent_id, toc.next_id as next_id,
-toc.slur as slur, toc.title as title
-"""
-
-adjacent_cte_template = """
-{name} (n, id, parent_id, next_id, slur, title) AS (
-SELECT 1 as n, {cols} FROM tree
-WHERE id = :id
-
+cte_template = """
+{{name}} (n, {0}) AS (
+SELECT 0 as n, {1} FROM toc WHERE id = :id
 UNION ALL
+SELECT n + 1, {1} FROM toc
+INNER JOIN {{name}} ON {{comp}}
+WHERE n < {{N}}
+)""".format(', '.join(toc_cols),
+            ', '.join(toc_cols_fullname))
 
-SELECT {step}, {cols} FROM tree
-INNER JOIN {name} ON {comp}
-WHERE {stop}
-)"""
+cte_forward = cte_template.format(
+    name='cte_forward',
+    comp='cte_forward.next_id = toc.id',
+    N=5
+)
 
-adjacent_cte_forward = adjacent_cte_template.format(**{
-    'name': 'cte_forward',
-    'cols': tree_cols,
-    'comp': 'cte_forward.next_id = tree.id',
-    'step': 'n + 1',
-    'stop': 'n <= 5'
-})
+cte_backward = cte_template.format(
+    name='cte_backward',
+    comp='toc.next_id = cte_backward.id',
+    N=5
+)
 
-adjacent_cte_backward = adjacent_cte_template.format(**{
-    'name': 'cte_backward',
-    'cols': tree_cols,
-    'comp': 'tree.next_id = cte_backward.id',
-    'step': 'n - 1',
-    'stop': 'n >= -4'
-})
+cte_upward = cte_template.format(
+    name='cte_upward',
+    comp='cte_upward.parent_id = toc.id',
+    N=10
+)
+
+cte_downward = cte_template.format(
+    name='cte_downward',
+    comp='toc.parent_id = cte_downward.id',
+    N=1
+)
 
 tree_query_cte = """
-WITH {}, {}
-SELECT * from cte_backward
-UNION
-SELECT * from cte_forward
-""".format(adjacent_cte_forward, adjacent_cte_backward)
+WITH {1}, {2}, {3}, {4}
+      SELECT {0} FROM cte_backward
+UNION SELECT {0} FROM cte_forward
+UNION SELECT {0} FROM cte_upward
+UNION SELECT {0} FROM cte_downward
+""".format(', '.join(toc_cols),
+           cte_backward, cte_forward, cte_upward, cte_downward)
 
 class DbTree(Db):
     @auto_rollback
@@ -73,9 +78,11 @@ def list_files():
     yield '</ul>'
 
 def handle(app):
-    filename = request.args.get(':')
-    if not filename or not re.match('^[a-zA-Z0-9_\\-]{1,100}$', filename):
-        return Response(list_files())
+    slur = request.args.get(':')
+    if not slur:
+        return '<meta http-equiv="refresh" content="2; url=?:=home"> redirect'
+    if not is_valid_slur(slur):
+        return 'Invalid page ID'
 
     tree = get_tree()
     tree_html = compile_tree(tree)

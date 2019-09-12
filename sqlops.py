@@ -1,16 +1,23 @@
 import sqlite3
 from sqlite3 import DatabaseError, IntegrityError
 from pathlib import Path
+import re
 from contextlib import contextmanager
 import glob
 
 res_dir = Path(__file__).absolute().parent
+slur_re = re.compile('^[a-zA-Z0-9_\\-]{1,100}$')
 
+def is_valid_slur(slur):
+    return slur_re.match(slur)
 
+def slur_to_link(slur):
+    return '?:=%s' % slur
 
 class Db:
     def __init__(self, address):
         self.conn = sqlite3.connect(address, isolation_level=None)
+        self.conn.row_factory = sqlite3.Row
         c = self.conn.cursor()
         c.execute('PRAGMA foreign_keys = ON')
 
