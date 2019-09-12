@@ -177,24 +177,35 @@ class PageInfo:
         self.content_list = self.content_row_iter()
 
 class DbTree(Db):
-    @auto_rollback
-    def get_tree(self, c, slur):
-        # needs to be in one transaction
-        page_id = Db.check_page_id(c, slur)
+    @staticmethod
+    def put_tree(c, page_id, page_info):
+        # adjacent articles
         c.execute(tree_query_cte, {'id': page_id})
-        rows = c.fetchmany()
         # convert rows into dict
+        for row in c.fetchall():
+            page_info.load_tree_row(row)
 
+    @staticmethod
+    def load_content(c, page_id, page_info):
+        c.execute("""
+        SELECT id, next_id, content FROM content WHERE parent_id = ?
+        """, (page_id,))
+        for row in c.fetchall():
+            page_info.load_content_row(row)
 
-def list_files():
-    yield '<ul>'
-    links = sorted(map(lambda p: p.stem, Path('.').glob('*.scrbl')))
-    for ln in links:
-        yield '<li>'
-        esc = escape(ln)
-        yield '<a href="?:=%s">%s</a>' % (esc, esc)
-        yield '</li>'
-    yield '</ul>'
+    def get_page_info(self, slur):
+        result = None
+        # transaction starts
+        with self.auto_rollback() as c:
+            # initialize PageInfo
+            page_id = Db.check_page_id(c, slur)
+            result = PageInfo(page_id)
+            # put some tree content in it
+            DbTree.put_tree(c, page_id, result)
+            # put some page content in it
+            DbTree.load_content(c, page_id, result)
+        result.compute()
+        return result
 
 def handle(app):
     slur = request.args.get(':')
@@ -203,19 +214,21 @@ def handle(app):
     if not is_valid_slur(slur):
         return 'Invalid page ID'
 
-    tree = get_tree()
-    tree_html = compile_tree(tree)
+    with DbTree(app.config['db_uri']) as db:
+        page_info = db.get_page_info(slur)
 
-    content = open('%s.scrbl' % filename).read()
-    cons = Parser().parse_string(content)
-    notes_html = compile_notes(cons)
+    tree_html = compile_tree(page_info.tree)
+    notes_html_list = []
+    for content in page_info.content_list:
+        cons = Parser().parse_string(content)
+        notes_html_list.append(compile_notes(cons))
 
     return render_template(
         'view.html',
-        title='Test Title',
-        directory_of_page=[('Notes', '#'), ('Calculus', '#calc')],
-        prev_article=('a', 'b'),
-        next_article=('some thing2', 'some thing2'),
+        title=page_info.title,
+        directory_of_page=page_info.path,
+        prev_article=page_info.prev,
+        next_article=page_info.next,
         sidebar_html=tree_html,
-        notes_html=notes_html
+        notes_html_list=notes_html_list
     )

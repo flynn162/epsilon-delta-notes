@@ -53,9 +53,11 @@
 
 <div class="content">
   <div class="has-right-margin">
-  {%- for html in notes_html -%}
-  {{ html|safe }}
-  {%- endfor -%}
+    {%- for notes_html in notes_html_list -%}
+    {%- for html in notes_html -%}
+    {{ html|safe }}
+    {%- endfor -%}
+    {%- endfor -%}
   </div>
 </div>
 
@@ -64,8 +66,10 @@
     [[ End of page, some meta-information follows: ]]
   </p>
 
+  {% if date_modified %}
   <span>Last modified {{ date_modified }}</span>
   <span class="sep">|</span>
+  {% endif %}
   Powered by
   <a href="#">Epsilon-Delta Notes</a>
   <span class="sep">|</span>
