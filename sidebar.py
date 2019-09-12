@@ -1,15 +1,42 @@
 from flask import escape
+from collections import deque
+from sqlops import slur_to_link
 
 class TreeNode:
-    def __init__(self, title, link, children, selected=False):
+    def __init__(self, title, slur, children=None, selected=False):
         self.title = title
-        self.link = link
+        self.slur = slur
         self.children = children
         self.selected = selected
 
+    def __repr__(self):
+        return '<TreeNode selected=%r title=%r slur=%r children=%r>' % (
+            self.selected,
+            self.title,
+            self.slur,
+            self.children
+        )
+
+    def append(self, child):
+        if self.children is None:
+            self.children = deque()
+        self.children.append(child)
+
+    def prepend(self, child):
+        if self.children is None:
+            self.children = deque()
+        self.children.appendleft(child)
+
+    def link(self):
+        return slur_to_link(self.slur)
+
 def compile_link(node, acc):
     acc.append('<div>')
-    acc.append('<a href="%s">%s</a>' % (escape(node.link), escape(node.title)))
+    if node.slur == '...':
+        acc.append('<span>...</span>')
+    else:
+        acc.append('<a href="%s">%s</a>' %
+                   (escape(node.link()), escape(node.title)))
     acc.append('</div>')
 
 def _compile_tree_private(current, acc):
@@ -38,6 +65,7 @@ def _compile_tree_private(current, acc):
 def compile_tree(current):
     acc = []
     acc.append('<ul>')
-    _compile_tree_private(current, acc)
+    for node in current.children:
+        _compile_tree_private(node, acc)
     acc.append('</ul>')
     return acc

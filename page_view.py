@@ -4,12 +4,6 @@ from sidebar import TreeNode, compile_tree
 from pathlib import Path
 from sqlops import Db, is_valid_slur, slur_to_link
 
-def get_tree():
-    return TreeNode('Notes',
-                    'root',
-                    [TreeNode('Proof', 'p', None),
-                     TreeNode('Calculus', 'calc',
-                              [TreeNode("Green's Theorem", 'green', None, selected=True)])])
 toc_cols = ('id', 'parent_id', 'next_id', 'first_child_id', 'first_content_id',
             'slur', 'title', 'mtime')
 toc_cols_fullname = map(lambda s: 'toc.{0} as {0}'.format(s), toc_cols)
@@ -56,6 +50,53 @@ UNION SELECT {0} FROM cte_upward
 UNION SELECT {0} FROM cte_downward
 """.format(', '.join(toc_cols),
            cte_backward, cte_forward, cte_upward, cte_downward)
+
+class Tree:
+    def __init__(self, rows, page_id):
+        self.rows = rows
+        self.page_id = page_id
+
+    def __contains__(self, element):
+        if element is None:
+            return False
+        else:
+            return element in self.rows
+
+    def get(self, key, default=None):
+        if key is None:
+            return default
+        else:
+            return self.rows.get(key, default)
+
+    def into(self):
+        # start from the top
+        top_level_rows = filter(lambda r: r['parent_id'] not in self,
+                                self.rows.values())
+        # root
+        root = TreeNode(None, None)
+        self.make_children(top_level_rows, root)
+        return root
+
+    def iterate_children(self, parent_row):
+        front_row = self.get(parent_row['first_child_id'])
+        while front_row is not None:
+            yield front_row
+            front_row = self.get(front_row['next_id'])
+
+    def make_children(self, current_rows, acc):
+        last_row = None
+        for row in current_rows:
+            last_row = row
+            children = self.iterate_children(row)
+            node = TreeNode(row['title'],
+                            row['slur'],
+                            selected=(row['id'] == self.page_id))
+            self.make_children(children, node)
+            acc.append(node)
+        # detect broken linked list
+        # we can have no child at all, so we need to check if last_row is None
+        if last_row and last_row['next_id']:
+            acc.append(TreeNode(None, '...'))
 
 class DbTree(Db):
     @auto_rollback
