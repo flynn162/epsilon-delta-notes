@@ -3,7 +3,7 @@ from pathlib import Path
 from configparser import RawConfigParser
 import os, sys, signal
 
-import page_view
+import page_view, page_edit
 
 app = Flask(__name__)
 app.secret_key = os.urandom(128 // 8)
@@ -64,9 +64,13 @@ def index():
 def view():
     return page_view.handle(app)
 
-@app.route('/edit')
+@app.route('/edit', methods=['GET', 'POST'])
 def edit():
-    return render_template('edit.html', title='Editing')
+    if request.method == 'GET':
+        return page_edit.handle_get(app)
+    else:
+        return page_edit.handle_post(app)
+
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
