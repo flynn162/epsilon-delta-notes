@@ -1,7 +1,16 @@
-from sqlops import Db, auto_rollback
+from sqlops import auto_rollback
+from page_view import DbTree, PageInfo, toc_cols_str
 
+class DbEditPage(DbTree):
+    @staticmethod
+    def _put_current_node(c, page_id, page_info):
+        c.execute('SELECT {} FROM toc WHERE id = ?'.format(toc_cols_str),
+                  (page_id,))
+        page_info.load_tree_row(c.fetchone())
 
-class DbEditPage(Db):
+    def get_page_info(self, slur):
+        return self._get_page_info(slur, DbEditPage._put_current_node)
+
     def append(self, slur, content):
         with self.auto_rollback() as c:
             page_id = Db.check_page_id(c, slur)

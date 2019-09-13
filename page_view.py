@@ -10,6 +10,9 @@ toc_cols = ('id', 'parent_id', 'next_id', 'first_child_id', 'first_content_id',
             'slur', 'title', 'mtime')
 toc_cols_fullname = map(lambda s: 'toc.{0} as {0}'.format(s), toc_cols)
 
+toc_cols_str = ' ,'.join(toc_cols)
+toc_cols_fullname_str = ' ,'.join(toc_cols_fullname)
+
 cte_template = """
 {{name}} (n, {0}) AS (
 SELECT 0 as n, {1} FROM toc WHERE id = :id
@@ -17,8 +20,7 @@ UNION ALL
 SELECT n + 1, {1} FROM toc
 INNER JOIN {{name}} ON {{comp}}
 WHERE n < {{N}}
-)""".format(', '.join(toc_cols),
-            ', '.join(toc_cols_fullname))
+)""".format(toc_cols_str, toc_cols_fullname_str)
 
 cte_forward = cte_template.format(
     name='cte_forward',
@@ -50,7 +52,7 @@ WITH {1}, {2}, {3}, {4}
 UNION SELECT {0} FROM cte_forward
 UNION SELECT {0} FROM cte_upward
 UNION SELECT {0} FROM cte_downward
-""".format(', '.join(toc_cols),
+""".format(toc_cols_str,
            cte_backward, cte_forward, cte_upward, cte_downward)
 
 class Tree:
@@ -178,7 +180,7 @@ class PageInfo:
 
 class DbTree(Db):
     @staticmethod
-    def put_tree(c, page_id, page_info):
+    def _put_tree(c, page_id, page_info):
         # adjacent articles
         c.execute(tree_query_cte, {'id': page_id})
         # convert rows into dict
@@ -186,7 +188,7 @@ class DbTree(Db):
             page_info.load_tree_row(row)
 
     @staticmethod
-    def load_content(c, page_id, page_info):
+    def _load_content(c, page_id, page_info):
         c.execute("""
         SELECT id, next_id, content FROM content WHERE parent_id = ?
         """, (page_id,))
@@ -194,6 +196,9 @@ class DbTree(Db):
             page_info.load_content_row(row)
 
     def get_page_info(self, slur):
+        return self._get_page_info(slur, DbTree._put_tree)
+
+    def _get_page_info(self, slur, tree_loader):
         result = None
         # transaction starts
         with self.auto_rollback() as c:
@@ -201,9 +206,9 @@ class DbTree(Db):
             page_id = Db.check_page_id(c, slur)
             result = PageInfo(page_id)
             # put some tree content in it
-            DbTree.put_tree(c, page_id, result)
+            tree_loader(c, page_id, result)
             # put some page content in it
-            DbTree.load_content(c, page_id, result)
+            DbTree._load_content(c, page_id, result)
         result.compute()
         return result
 
