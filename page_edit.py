@@ -1,3 +1,4 @@
+from flask import request
 from sqlops import auto_rollback
 from page_view import DbTree, PageInfo, toc_cols_str
 
@@ -94,5 +95,13 @@ class DbEditPage(DbTree):
                 WHERE id = ?
                 """, (after_content_id,))
 
+def handle_get(app):
+    slur = request.args.get(':')
+    with DbEditPage(app.config['db_uri']) as db:
+        page_info = db.get_page_info(slur)
 
+    title = 'Editing %s' % page_info.title
+    return render_template('edit.html', title=title)
 
+def handle_post(app):
+    pass
