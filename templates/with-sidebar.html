@@ -6,12 +6,12 @@
 {% block body_class %} dual-col-container {% endblock %}
 
 {% block body %}
-<div id="left" class="col">
+<div class="col left">
   <p class="visually-hidden">[[ Sidebar: ]]</p>
   {% block left %}{% endblock %}
   <p class="visually-hidden">[[ Sidebar ends. ]]</p>
 </div>
-<div id="right" class="col">
+<div class="col right">
   {% block right %}{% endblock %}
 </div>
 {% endblock %}

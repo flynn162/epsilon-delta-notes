@@ -1,12 +1,14 @@
-from flask import request, render_template
-from page_view import DbTree, PageInfo, toc_cols_str
+from flask import request, render_template, url_for
+from page_view import DbTree, PageInfo, QueryBuilder
+
+db_query = str(QueryBuilder().upward())
 
 class DbEditPage(DbTree):
     @staticmethod
     def _put_current_node(c, page_id, page_info):
-        c.execute('SELECT {} FROM toc WHERE id = ?'.format(toc_cols_str),
-                  (page_id,))
-        page_info.load_tree_row(c.fetchone())
+        c.execute(db_query, {'id': page_id})
+        for row in c.fetchall():
+            page_info.load_tree_row(row)
 
     def get_page_info(self, slur):
         return self._get_page_info(slur, DbEditPage._put_current_node)
@@ -100,7 +102,15 @@ def handle_get(app):
         page_info = db.get_page_info(slur)
 
     title = 'Editing %s' % page_info.title
-    return render_template('edit.html', title=title)
+    path = [(t, '{}{}'.format(url_for('view'), l))
+            for (t, l) in page_info.path]
+    return render_template('edit.html',
+                           title=title,
+                           article_title=page_info.title,
+                           slur=slur,
+                           path=path,
+                           content_list=page_info.content_list,
+                           content_lock=page_info.content_lock)
 
 def handle_post(app):
-    pass
+    return str(request.form.getlist('text'))

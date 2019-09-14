@@ -1,19 +1,20 @@
 {% extends "with-sidebar.html" %}
 
 {% block head %}
-<link rel="stylesheet" href="/static/edit.css">
 <link rel="stylesheet" href="/static/font-awesome-4-dist/css/font-awesome.min.css">
+<link rel="stylesheet" href="/static/edit.css">
 <script src="/static/edit.js"></script>
 {% endblock %}
 
 {% block left %}
 
-You are editing X
-
-
-{%- for html in sidebar_html -%}
-{{ html|safe }}
-{%- endfor -%}
+You are editing
+<span class="nav" id="path">
+  {%- for name, link in path -%}
+  <span class="sep">/</span><!-- no space
+  --><a href="{{ link }}" target="_blank">{{ name }}</a>
+  {%- endfor -%}
+</span>
 
 {% endblock %}
 
@@ -61,26 +62,29 @@ You are editing X
 
     <form id="form" action="{{ url_for('edit') }}" method="POST">
       <!-- hidden field for writer lock -->
-      <input type="hidden" name="content_lock" value="{{ content_lock }}">
+      <input type="hidden" name="content_lock" value="{{ content_lock or '' }}">
 
       <!-- metadata of this article -->
       <div class="metadata-container">
         <label for="title">Title</label>
-        <input type="text" id="title" name="title">
+        <input type="text" id="title" name="title" value="{{ article_title }}">
       </div>
 
       <div class="metadata-container">
         <label for="slur">Page ID</label>
-        <input type="text" id="slur" name="slur" value="some-page" class="hidden">
+        <input type="hidden" name="old_slur" value="{{ slur }}">
+        <input type="text" id="slur" name="new_slur" value="{{ slur }}">
       </div>
 
       <!-- article content -->
       <div id="textboxes">
+        {% for content in content_list %}
         <div class="textbox-container">
-          <textarea id="text-a" name="text">some text</textarea>
-          <input type="hidden" id="par_id_123" name="par_id" value="123">
-          <input type="hidden" id="par_id_123345" name="par_id" value="123345">
+          <div class="scroll-anchor"></div>
+          <textarea name="text" class="textarea">{{ content }}</textarea>
+          <div class="textarea visually-hidden" aria-hidden="true"></div>
         </div>
+        {% endfor %}
       </div>
 
       <!-- actions -->

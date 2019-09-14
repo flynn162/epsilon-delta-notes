@@ -7,11 +7,11 @@ from collections import deque
 import datetime
 
 toc_cols = ('id', 'parent_id', 'next_id', 'first_child_id', 'first_content_id',
-            'slur', 'title', 'mtime')
+            'slur', 'title', 'mtime', 'content_lock')
 toc_cols_fullname = map(lambda s: 'toc.{0} as {0}'.format(s), toc_cols)
 
-toc_cols_str = ' ,'.join(toc_cols)
-toc_cols_fullname_str = ' ,'.join(toc_cols_fullname)
+toc_cols_str = ', '.join(toc_cols)
+toc_cols_fullname_str = ', '.join(toc_cols_fullname)
 
 cte_template = """
 {{name}} (n, {0}) AS (
@@ -22,38 +22,50 @@ INNER JOIN {{name}} ON {{comp}}
 WHERE n < {{N}}
 )""".format(toc_cols_str, toc_cols_fullname_str)
 
-cte_forward = cte_template.format(
-    name='cte_forward',
-    comp='cte_forward.next_id = toc.id',
-    N=5
-)
+class QueryBuilder:
+    def __init__(self):
+        self.current_i = -1
+        self.tables = []
 
-cte_backward = cte_template.format(
-    name='cte_backward',
-    comp='toc.next_id = cte_backward.id',
-    N=5
-)
+    def get_name(self):
+        self.current_i += 1
+        return 'cte_%d' % self.current_i
 
-cte_upward = cte_template.format(
-    name='cte_upward',
-    comp='cte_upward.parent_id = toc.id',
-    N=10
-)
+    def _append_fmt(self, fmt_str, N):
+        name = self.get_name()
+        self.tables.append(cte_template.format(
+            name=name,
+            comp=fmt_str.format(name),
+            N=N
+        ))
 
-cte_downward = cte_template.format(
-    name='cte_downward',
-    comp='toc.parent_id = cte_downward.id',
-    N=1
-)
+    def forward(self):
+        self._append_fmt('{}.next_id = toc.id', 5)
+        return self
 
-tree_query_cte = """
-WITH {1}, {2}, {3}, {4}
-      SELECT {0} FROM cte_backward
-UNION SELECT {0} FROM cte_forward
-UNION SELECT {0} FROM cte_upward
-UNION SELECT {0} FROM cte_downward
-""".format(toc_cols_str,
-           cte_backward, cte_forward, cte_upward, cte_downward)
+    def backward(self):
+        self._append_fmt('toc.next_id = {}.id', 5)
+        return self
+
+    def upward(self):
+        self._append_fmt('{}.parent_id = toc.id', 10)
+        return self
+
+    def downward(self):
+        self._append_fmt('toc.parent_id = {}.id', 1)
+        return self
+
+    def __str__(self):
+        selects = ['SELECT {} FROM cte_{}'.format(toc_cols_str, i)
+                   for i in range(len(self.tables))]
+
+        return 'WITH {} \n {}'.format(
+            ','.join(self.tables),
+            '\n UNION '.join(selects)
+        )
+
+
+tree_query_cte = str(QueryBuilder().forward().backward().upward().downward())
 
 class Tree:
     def __init__(self, rows, page_id):
@@ -114,6 +126,7 @@ class PageInfo:
         self.page_id = page_id
         self.content_rows = {}
 
+        self.content_lock = None
         self.tree = None
         self.content_list = None
         self.path = None
@@ -125,6 +138,8 @@ class PageInfo:
     def load_tree_row(self, row):
         if row['next_id'] == self.page_id:
             self.prev = row_to_link_tuple(item)
+        if row['id'] == self.page_id:
+            self.content_lock = row['content_lock']
 
         self.acc[row['id']] = row
 
@@ -145,7 +160,6 @@ class PageInfo:
 
     def compute_path(self):
         iterator = self.reverse_path_iter()
-        next(iterator)
         result = deque()
         for path_tuple in iterator:
             result.appendleft(path_tuple)
@@ -227,6 +241,9 @@ def handle(app):
     for content in page_info.content_list:
         cons = Parser().parse_string(content)
         notes_html_list.append(compile_notes(cons))
+
+    # use the "directory" part only
+    page_info.path.pop()
 
     return render_template(
         'view.html',
