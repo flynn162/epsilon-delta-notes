@@ -139,12 +139,29 @@ function setSelectedStyle(el, tf) {
     }
 }
 
+function changeA11yAttribs(divTextarea) {
+    divTextarea.removeAttribute('aria-hidden');
+    divTextarea.setAttribute('role', 'textbox');
+    divTextarea.setAttribute('aria-multiline', 'true');
 }
 
+function focusOnTextareaInContainer(container) {
+    container.querySelector('div.textarea').focus();
 }
 
-function selectTextareaFromContainer(container) {
-    container.querySelector('textarea').focus();
+function loadCm(el, value) {
+    let cm = CodeMirror(el, {
+        value: value,
+        mode: 'scribblemode',
+        lineWrapping: true,
+        lineNumbers: true,
+        extraKeys: {
+            'Tab': 'indentMore',
+            'Shift-Tab': 'indentLess',
+            'Ctrl-K': 'killLine'
+        }
+    });
+    return cm;
 }
 
 function Editor() {
