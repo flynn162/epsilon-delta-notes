@@ -1,5 +1,4 @@
-from flask import request
-from sqlops import auto_rollback
+from flask import request, render_template
 from page_view import DbTree, PageInfo, toc_cols_str
 
 class DbEditPage(DbTree):
