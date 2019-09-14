@@ -147,19 +147,185 @@ function selectTextareaFromContainer(container) {
     container.querySelector('textarea').focus();
 }
 
+function Editor() {
+    this.enableButtons = function () {
+        for (let key of ['btn-up', 'btn-down', 'btn-delete']) {
+            this.toolbar[key].removeAttribute('disabled');
+        }
+    };
 
+    this.disableButtons = function () {
+        for (let key of ['btn-up', 'btn-down', 'btn-delete']) {
+            this.toolbar[key].setAttribute('disabled', 'yeah');
+        }
+    };
 
+    this.addCmListeners = function (cm, node) {
+        // change the textarea's listeners such that
+        // they change the state when they are focused
+        let onFocus = function () {
+            if (this.selected != null) {
+                setSelectedStyle(this.selected.data.container, false);
+            }
+            this.selected = node;
+            setSelectedStyle(this.selected.data.container, true);
+            this.enableButtons();
+        };
+        // lol js: in my handler above,
+        // `this` refers to the class instance, not the element
+        // rebinding `this`
+        cm.on('focus', onFocus.bind(this));
+    };
 
-        } else {
+    this.onAdd = function (node) {
+        // build our textbox element
+        let anchor = createElementWithDict('div', {
+            'class': 'scroll-anchor'
+        });
+        let inputHidden = createElementWithDict('input', {
+            'type': 'hidden',
+            'name': 'text'
+        });
+        let divTextarea = createElementWithDict('div', {
+            'class': 'textbox'
+        });
+        let container = createElementWithDict('div', {
+            'class': 'textbox-container'
+        });
+        changeA11yAttribs(divTextarea);
+        let cm = loadCm(divTextarea, '');
+        container.appendChild(anchor);
+        container.appendChild(inputHidden);
+        container.appendChild(divTextarea);
+
+        // add element into linked list
+        let newNode = this.linkedList.append(new Data(cm, container));
+        if (node != null) {
+            // shuffle its position
+            this.linkedList.remove(newNode);
+            this.linkedList.insertAfter(node, newNode);
         }
 
+        // add element to dom
+        if (node != null) {
+            node.data.container.insertAdjacentElement('afterend', container);
+        } else {
+            this.textboxes.appendChild(container);
+        }
 
+        this.addCmListeners(cm, newNode);
+        cm.refresh();
+        cm.focus();
+    };
 
+    this.onMoveUp = function (node) {
+        let targetNode = this.linkedList.moveUp(node);
+        if (targetNode != -1) {
+            if (targetNode != null) {
+                this.textboxes.removeChild(node.data.container);
+                let targetElement = targetNode.container;
+                targetElement.insertAdjacentElement('afterend',
+                                                    node.data.container);
+            } else {
+                this.textboxes.insertAdjacentElement('afterbegin',
+                                                     node.data.container);
+            }
+            node.data.container
+                .querySelector('.scroll-anchor').scrollIntoView();
+        }
+    };
 
+    this.onMoveDown = function (node) {
+        let targetNode = this.linkedList.moveDown(node);
+        if (targetNode != -1) {
+            let targetElement = targetNode.container;
+            this.textboxes.removeChild(node.data.container);
+            targetElement.insertAdjacentElement('afterend',
+                                                node.data.container);
+            node.data.container
+                .querySelector('.scroll-anchor').scrollIntoView();
+        }
+    };
+
+    this.onDelete = function (node) {
+        if (node == null) {
+            return;
+        }
+        if (node.next != null) {
+            focusOnTextareaInContainer(node.next.data.container);
+        } else if (node.prev != null) {
+            focusOnTextareaInContainer(node.prev.data.container);
+        } else {
+            this.selected = null;
+            this.disableButtons();
+        }
+        this.linkedList.remove(node);
+        this.textboxes.removeChild(node.data.container);
+    };
+
+    this.onSubmit = function () {
+        for (data of this.linkedList) {
+            // migrate cm text into hidden fields
+            let inputHidden = data.container.querySelector('input');
+            inputHidden.value = data.cm.getValue();
+        }
+        return true;
+    };
+
+    this.initializeState = function () {
+        this.linkedList = new LinkedList();
+        this.selected = null;
+        this.toolbar = {};
+        this.textboxes = document.querySelector('#textboxes');
+        for (let key of ['btn-add', 'btn-up', 'btn-down', 'btn-delete']) {
+            this.toolbar[key] = document.getElementById(key);
+        }
+    };
+
+    this.loadTextIntoLinkedList = function () {
+        for (var el of document.querySelectorAll('div.textarea')) {
+            let container = el.parentElement;
+            // migrate text
+            let formTextarea = container.querySelector('textarea');
+            let inputHidden = createElementWithDict('input', {
+                'type': 'hidden',
+                'name': 'text',
+                'value': ''
+            });
+            let cm = loadCm(el, formTextarea.value);
+            let node = this.linkedList.append(new Data(cm, container));
+            formTextarea.remove();
+            container.appendChild(inputHidden);
+            el.classList.remove('visually-hidden');
+            changeA11yAttribs(el);
+            this.addCmListeners(cm, node);
+            cm.refresh();
+        }
+    };
+
+    this.initializeState();
+    // prepare text
+    this.loadTextIntoLinkedList();
     // register listeners
+    this.disableButtons();
     let ids = ['btn-add', 'btn-up', 'btn-down', 'btn-delete'];
+    let fns = [this.onAdd, this.onMoveUp, this.onMoveDown, this.onDelete];
     for (let i = 0; i < ids.length; i++) {
+        this.toolbar[ids[i]].addEventListener(
+            'click',
+            // lol js: handler was called with a spurious `this` argument
+            () => fns[i].bind(this)(this.selected)
+        );
     }
+    document.querySelector('#form').addEventListener(
+        'submit',
+        // rebind `this`
+        () => this.onSubmit()
+    );
+}
+
+function editorMain() {
+    window.editor = new Editor();
 }
 
 window.addEventListener('DOMContentLoaded', editorMain);
