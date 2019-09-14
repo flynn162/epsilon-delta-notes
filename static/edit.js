@@ -1,9 +1,25 @@
-let state = {};
-
 function Node(data, prev, next) {
     this.data = data;
     this.prev = prev;
     this.next = next;
+}
+
+function Data(cmInstance, container) {
+    this.cm = cmInstance;
+    this.container = container;
+}
+
+function LinkedListIterator(linkedList) {
+    this.current = linkedList.front;
+    this.next = function () {
+        if (this.next == null) {
+            return {done: true};
+        } else {
+            let result = this.current.data;
+            this.current = this.current.next;
+            return {done: false, value: result};
+        }
+    };
 }
 
 function LinkedList() {
@@ -99,6 +115,10 @@ function LinkedList() {
         // here, target is not null
         return target.data;
     };
+
+    this[Symbol.iterator] = function () {
+        return new LinkedListIterator(this);
+    };
 }
 
 function createElementWithDict(name, dict) {
@@ -111,28 +131,6 @@ function createElementWithDict(name, dict) {
     return element;
 }
 
-function initializeState() {
-    state.linkedList = new LinkedList();
-    state.selected = null;
-    state.toolbar = {};
-    state.textboxes = document.querySelector('#textboxes');
-    for (let key of ['btn-add', 'btn-up', 'btn-down', 'btn-delete']) {
-        state.toolbar[key] = document.getElementById(key);
-    }
-}
-
-function enableButtons() {
-    for (let key of ['btn-up', 'btn-down', 'btn-delete']) {
-        state.toolbar[key].removeAttribute('disabled');
-    }
-}
-
-function disableButtons() {
-    for (let key of ['btn-up', 'btn-down', 'btn-delete']) {
-        state.toolbar[key].setAttribute('disabled', 'yeah');
-    }
-}
-
 function setSelectedStyle(el, tf) {
     if (tf) {
         el.classList.add('selected');
@@ -141,115 +139,26 @@ function setSelectedStyle(el, tf) {
     }
 }
 
-function addTextareaListeners(el, node) {
-    el.addEventListener('focus', function () {
-        if (state.selected != null) {
-            setSelectedStyle(state.selected.data, false);
-        }
-        state.selected = node;
-        setSelectedStyle(node.data, true);
-        enableButtons();
-    });
-    el.addEventListener('input', function () {
-        el.style['height'] = el.scrollHeight + 'px';
-    });
 }
 
-function loadTextIntoLinkedList() {
-    // change the textarea's listeners such that
-    // they change the state when they are focused
-    for (var el of document.querySelectorAll('textarea')) {
-        let node = state.linkedList.append(el.parentElement);
-        addTextareaListeners(el, node);
-    }
 }
 
 function selectTextareaFromContainer(container) {
     container.querySelector('textarea').focus();
 }
 
-function onAdd(node) {
-    // build our textbox element
-    let idField = createElementWithDict('input', {
-        type: 'hidden',
-        name: 'par_id',
-        value: 'new'
-    });
-    let textarea = createElementWithDict('textarea', {
-        name: 'text'
-    });
-    let container = createElementWithDict('div', {
-        'class': 'textbox-container'
-    });
-    container.appendChild(textarea);
-    container.appendChild(idField);
-    // add element into linked list
-    let newNode = state.linkedList.append(container);
-    if (node != null) {
-        // shuffle its position
-        state.linkedList.remove(newNode);
-        state.linkedList.insertAfter(node, newNode);
-    }
 
-    // add element to dom
-    if (node != null) {
-        node.data.insertAdjacentElement('afterend', container);
-    } else {
-        state.textboxes.appendChild(container);
-    }
 
-    addTextareaListeners(textarea, newNode);
-    textarea.focus();
-}
 
-function onMoveUp(node) {
-    let targetElement = state.linkedList.moveUp(node);
-    if (targetElement != -1) {
-        state.textboxes.removeChild(node.data);
-        if (targetElement != null) {
-            targetElement.insertAdjacentElement('afterend', node.data);
         } else {
-            state.textboxes.insertAdjacentElement('afterbegin', node.data);
         }
-    }
-}
-
-function onMoveDown(node) {
-    let targetElement = state.linkedList.moveDown(node);
-    if (targetElement != -1) {
-        state.textboxes.removeChild(node.data);
-        targetElement.insertAdjacentElement('afterend', node.data);
-    }
-}
-
-function onDelete(node) {
-    if (node == null) {
-        return;
-    }
-    if (node.next != null) {
-        selectTextareaFromContainer(node.next.data);
-    } else if (node.prev != null) {
-        selectTextareaFromContainer(node.prev.data);
-    } else {
-        state.selected = null;
-        disableButtons();
-    }
-    state.linkedList.remove(node);
-    state.textboxes.removeChild(node.data);
-}
 
 
-function editorMain() {
-    initializeState();
-    loadTextIntoLinkedList();
+
+
     // register listeners
-    disableButtons();
     let ids = ['btn-add', 'btn-up', 'btn-down', 'btn-delete'];
-    let fns = [onAdd, onMoveUp, onMoveDown, onDelete];
     for (let i = 0; i < ids.length; i++) {
-        state.toolbar[ids[i]].addEventListener('click',  () => {
-            fns[i](state.selected);
-        });
     }
 }
 
