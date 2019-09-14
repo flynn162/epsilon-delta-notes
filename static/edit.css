@@ -16,6 +16,7 @@
     box-shadow: #eee 1px 1px 5px;
     margin-bottom: 1em;
     padding: 0px 15px;
+    z-index: 69420;
 }
 
 .right-floating {
@@ -91,18 +92,21 @@ form label {
     margin: 1em 0px;
 }
 
-.textbox-container > textarea {
-    padding: 10px;
+.textarea {
+    position: relative;
     background: white;
     border: 1px solid #ccc;
     border-radius: 5px;
     box-sizing: border-box;
     resize: vertical;
     min-height: 5em;
-    max-height: 30em;
+    max-height: calc(100vh - 5em);
+    overflow: auto;
+    font-family: monospace;
 }
 
 .textbox-container {
+    position: relative;
     padding-left: 1em;
     padding-right: 0.5em;
     padding-top: 0.5em;
@@ -113,6 +117,11 @@ form label {
 
 .textbox-container.selected {
     background-color: var(--gold-bg);
+}
+
+.scroll-anchor {
+    position: absolute;
+    top: -5em;
 }
 
 .metadata-container {
