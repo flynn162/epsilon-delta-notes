@@ -1,14 +1,8 @@
 def lcs(p, q):
-    """
-    >>> lcs('ABCD', 'ABC')[0]
-    3
-    >>> lcs('ABCD', 'BD')[0]
-    2
-    >>> lcs('', 'ABCD')[0]
-    0
-    >>> lcs('AaAaAa', '')[0]
-    0
-    """
+    mem = _lcs(p, q)
+    return mem[len(mem) - 1][len(mem[0]) - 1]
+
+def _lcs(p, q):
     # initialize an array of size m x n
     m, n = len(p) + 1, len(q) + 1
     # first index with 0 <= x < m, and then index with 0 <= y < n
@@ -33,19 +27,19 @@ def lcs(p, q):
                 result = max(temp1, temp2)
             mem[x][y] = result
 
-    return mem[m - 1][n - 1], mem
+    return mem
 
-def print_diff(p, q, mem, x, y, acc):
+def print_diff(p, q):
+    mem = _lcs(p, q)
+    yield from _print_diff(p, q, mem, len(p), len(q))
+
+def _print_diff(p, q, mem, x, y):
     if x > 0 and y > 0 and p[x - 1] == q[y - 1]:
-        print_diff(p, q, mem, x - 1, y - 1, acc)
-        acc.append((' ', p[x - 1]))
+        yield from _print_diff(p, q, mem, x - 1, y - 1)
+        yield (' ', p[x - 1])
     elif y > 0 and (x == 0 or mem[x][y - 1] >= mem[x - 1][y]):
-        print_diff(p, q, mem, x, y - 1, acc)
-        acc.append(('+', q[y - 1]))
+        yield from _print_diff(p, q, mem, x, y - 1)
+        yield ('+', q[y - 1])
     elif x > 0 and (y == 0 or mem[x][y - 1] < mem[x - 1][y]):
-        print_diff(p, q, mem, x - 1, y, acc)
-        acc.append(('-', p[x - 1]))
-
-if __name__ == '__main__':
-    import doctest
-    doctest.testmod()
+        yield from _print_diff(p, q, mem, x - 1, y)
+        yield ('-', p[x - 1])
