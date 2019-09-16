@@ -41,13 +41,12 @@ class EditPageDbWriter(Db):
         WHERE id != last_insert_rowid() AND next_id IS NULL
         """)
 
-    @staticmethod
-    def _check_is_front(c, page_id, paragraph_id):
+    def _check_is_front(self, c, paragraph_id):
         c.execute("""
         SELECT first_content_id FROM toc
         WHERE id = ? AND
         (SELECT parent_id FROM content where id = ?) = ?
-        """, (page_id, paragraph_id, page_id))
+        """, (self.page_id, paragraph_id, self.page_id))
         row = c.fetchone()
         # also checks if row exists, and the if the parent is correct
         if not row:
@@ -55,60 +54,67 @@ class EditPageDbWriter(Db):
 
         return row[0] == paragraph_id
 
-    def delete_paragraph(self, slur, paragraph_id):
-        with self.auto_rollback() as c:
-            page_id = Db.check_page_id(c, slur)
-            is_front = Db._check_is_front(c, page_id, paragraph_id)
-            if is_front:
-                # front = current.next
-                c.execute("""
-                UPDATE toc SET first_content_id = (
-                    SELECT next_id FROM content WHERE id = ?
-                ) WHERE id = ?
-                """, (paragraph_id, page_id))
-            else:
-                # prev.next = current.next
-                c.execute("""
-                UPDATE content SET next_id = (
-                    SELECT next_id FROM content WHERE id = ?
-                ) WHERE next_id = ?
-                """, (paragraph_id, paragraph_id))
-            # delete current
-            c.execute('DELETE FROM content WHERE id = ?', (paragraph_id,))
+    @needs_page_id
+    def delete_paragraph(self, c, paragraph_id):
+        is_front = self._check_is_front(c, paragraph_id)
+        if is_front:
+            # front = current.next
+            c.execute("""
+            UPDATE toc SET first_content_id = (
+                SELECT next_id FROM content WHERE id = ?
+            ) WHERE id = ?
+            """, (paragraph_id, self.page_id))
+        else:
+            # prev.next = current.next
+            c.execute("""
+            UPDATE content SET next_id = (
+                SELECT next_id FROM content WHERE id = ?
+            ) WHERE next_id = ?
+            """, (paragraph_id, paragraph_id))
+        # delete current
+        c.execute('DELETE FROM content WHERE id = ?', (paragraph_id,))
 
-    @staticmethod
-    def _insert_par_node(c, parent_id, next_id, content):
-        c.execute("""
-        INSERT INTO content (parent_id, next_id, content)
-        VALUES (?, ?, ?)
-        """, (parent_id, next_id, content))
-
-    def insert_paragraph(self, slur, after_content_id, content):
+    @needs_page_id
+    def insert_paragraph(self, after_content_id, content):
         with auto_rollback() as c:
-            if after_content_id == -1:
-                # at the front
-                row = Db._fetch_page_row(c, slur)
-                Db._insert_par_node(c,
-                                    row['id'],
-                                    row['first_content_id'],
-                                    content)
-                c.execute("""
-                UPDATE toc SET first_content_id = last_insert_rowid()
-                WHERE id = ?
-                """, (row['id'],))
+            if after_content_id == 'front':
+                self._insert_at_front(c, content)
+            elif after_content_id == 'lastinsert':
+                c.execute('SELECT last_insert_row_id()')
+                self._insert(self, c.fetchone()[0], content)
             else:
-                # check if id exists
-                c.execute('SELECT parent_id, next_id FROM content WHERE id = ?',
-                          (after_content_id,))
-                row = c.fetchone()
-                if not row:
-                    raise IntegrityError('Content ID not found')
+                self._insert(self, after_content_id, content)
 
-                Db._insert_par_node(c, row[0], row[1], content)
-                c.execute("""
-                UPDATE content SET next_id = last_insert_rowid()
-                WHERE id = ?
-                """, (after_content_id,))
+    def _insert_at_front(self, c, content):
+        c.execute("""
+        INSERT INTO content (parent_id, next_id, content) VALUES
+        (:pid,
+         (SELECT first_content_id FROM toc where id = :pid),
+         :content)
+        """, {'pid': self.page_id, 'content': content})
+
+        c.execute("""
+        UPDATE toc SET first_content_id = last_insert_rowid()
+        WHERE id = ?
+        """, (self.page_id,))
+
+    def _insert(self, after_content_id, content):
+        # check if id exists
+        c.execute('SELECT parent_id, next_id FROM content WHERE id = ?',
+                  (after_content_id,))
+        row = c.fetchone()
+        if not row:
+            raise IntegrityError('after_content_id not found')
+
+        c.execute("""
+        INSERT INTO content (parent_id, next_id, content) VALUES
+        (?, ?, ?)
+        """, (row[0], row[1], content))
+
+        c.execute("""
+        UPDATE content SET next_id = last_insert_rowid()
+        WHERE id = ?
+        """, (after_content_id,))
 
 def handle_get(app):
     slur = request.args.get(':')
