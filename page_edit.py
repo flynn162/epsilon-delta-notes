@@ -75,15 +75,14 @@ class EditPageDbWriter(Db):
         c.execute('DELETE FROM content WHERE id = ?', (paragraph_id,))
 
     @needs_page_id
-    def insert_paragraph(self, after_content_id, content):
-        with auto_rollback() as c:
-            if after_content_id == 'front':
-                self._insert_at_front(c, content)
-            elif after_content_id == 'lastinsert':
-                c.execute('SELECT last_insert_row_id()')
-                self._insert(self, c.fetchone()[0], content)
-            else:
-                self._insert(self, after_content_id, content)
+    def insert_paragraph(self, c, after_content_id, content):
+        if after_content_id == 'front':
+            self._insert_at_front(c, content)
+        elif after_content_id == 'lastinsert':
+            c.execute('SELECT last_insert_row_id()')
+            self._insert(self, c.fetchone()[0], content)
+        else:
+            self._insert(self, after_content_id, content)
 
     def _insert_at_front(self, c, content):
         c.execute("""
