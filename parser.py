@@ -1,3 +1,4 @@
+import re
 from flask import escape
 from functools import wraps
 from pyparsing import Word, Literal, Optional, CharsNotIn, OneOrMore, Combine
@@ -5,7 +6,7 @@ from pyparsing import alphas, nums, quotedString
 from pyparsing import nestedExpr, locatedExpr, ParserElement, ParseResults
 
 # make \n significant
-ParserElement.setDefaultWhitespaceChars(' \t\r')
+ParserElement.setDefaultWhitespaceChars(' \t')
 
 ALLOWED_CHARS = frozenset(alphas + nums)
 MAX_CMD_LENGTH = 100
@@ -20,6 +21,8 @@ text_body = CharsNotIn('@\n|{}')
 line_break = Combine(OneOrMore(Literal('\n')))
 list_stuff = list_header | list_opener | list_closer
 scribble = OneOrMore(text_body | line_break | list_stuff)
+
+lstrip_regex = re.compile('^[ \t\r]+')
 
 class Cons(object):
     __slots__ = ('data', 'params')
@@ -48,6 +51,29 @@ def convert_error(method):
             raise ParserError(self) from e
     return result
 
+def rescan_for_line_breaks(params):
+    """Delete whitespaces between line breaks and detect line breaks,
+    handling situtations such as '^[ \t]+\n' """
+    # tokenizer confusion example:
+    # tokenized: ['ring.', '\n', '     ', '\n', '    For example,']
+    # should be treated as: ['ring.', '\n\n', '    For example,']
+    linewrap_acc = 0
+    for p in params:
+        if isinstance(p, str):
+            if lstrip_regex.fullmatch(p):  # all characters are whitespaces
+                continue
+            elif p.startswith('\n'):  # \n and \n+ have their own strings
+                linewrap_acc += len(p)
+            else:
+                if linewrap_acc > 0:
+                    yield ('\n' * linewrap_acc)
+                yield p
+                linewrap_acc = 0
+        else:
+            yield p
+    if linewrap_acc > 0:
+        yield ('\n' * linewrap_acc)
+
 class Parser(object):
     __slots__ = ('unesc_mode',
                  'bracket_counter',
@@ -62,7 +88,8 @@ class Parser(object):
 
     @convert_error
     def parse_string(self, string):
-        tokens = scribble.parseString(string)
+        tokens = scribble.parseString(string.replace('\r', ''))
+        tokens = rescan_for_line_breaks(tokens)
         return self.parse_tokens_into_list(iter(tokens))
 
     @convert_error
@@ -211,7 +238,6 @@ def _compile_notes(params, acc, use_p=True):
                 raise ValueError('You said not to have paragraphs')
             if acc.footnotes:
                 # bail out and let the caller compile footnotes
-                print("BAILING OUT")
                 acc.append('</div>')
                 return params
             else:
