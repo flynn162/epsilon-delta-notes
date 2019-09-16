@@ -1,9 +1,20 @@
 from flask import request, render_template, url_for
 from page_view import DbTree, PageInfo, QueryBuilder
+from functools import wraps
+from sqlops import PageNotFoundError
 
 db_query = str(QueryBuilder().upward())
 
-class DbEditPage(DbTree):
+def needs_page_id(func):
+    @wraps(func)
+    def result(self, *args, **kwargs):
+        if self.page_id is None:
+            raise RuntimeError('Needs to register first')
+        else:
+            return func(self, *args, **kwargs)
+    return result
+
+class EditPageDbReader(DbTree):
     @staticmethod
     def _put_current_node(c, page_id, page_info):
         c.execute(db_query, {'id': page_id})
@@ -13,19 +24,22 @@ class DbEditPage(DbTree):
     def get_page_info(self, slur):
         return self._get_page_info(slur, DbEditPage._put_current_node)
 
-    def append(self, slur, content):
-        with self.auto_rollback() as c:
-            page_id = Db.check_page_id(c, slur)
+class EditPageDbWriter(Db):
+    def __init__(self, db_uri):
+        super().__init__(db_uri)
+        self.page_id = None
 
-            c.execute("""
-            INSERT INTO content (parent_id, next_id, content)
-            VALUES (?, NULL, ?)
-            """, (page_id, content))
+    @needs_page_id
+    def append(self, c, content):
+        c.execute("""
+        INSERT INTO content (parent_id, next_id, content)
+        VALUES (?, NULL, ?)
+        """, (self.page_id, content))
 
-            c.execute("""
-            UPDATE content SET next_id = last_insert_rowid()
-            WHERE id != last_insert_rowid() AND next_id IS NULL
-            """)
+        c.execute("""
+        UPDATE content SET next_id = last_insert_rowid()
+        WHERE id != last_insert_rowid() AND next_id IS NULL
+        """)
 
     @staticmethod
     def _check_is_front(c, page_id, paragraph_id):
@@ -98,7 +112,7 @@ class DbEditPage(DbTree):
 
 def handle_get(app):
     slur = request.args.get(':')
-    with DbEditPage(app.config['db_uri']) as db:
+    with EditPageDbReader(app.config['db_uri']) as db:
         page_info = db.get_page_info(slur)
 
     title = 'Editing %s' % page_info.title
