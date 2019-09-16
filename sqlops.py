@@ -14,6 +14,9 @@ def is_valid_slur(slur):
 def slur_to_link(slur):
     return '?:=%s' % slur
 
+class PageNotFoundError(DatabaseError):
+    pass
+
 class Db:
     def __init__(self, address):
         self.conn = sqlite3.connect(address, isolation_level=None)
@@ -79,25 +82,12 @@ class Db:
         self.close()
 
     @staticmethod
-    def _fetch_page_fmt(c, slur, fmt):
-        c.execute('SELECT %s FROM toc WHERE slur = ?' % fmt, (slur,))
+    def check_page_id(c, slur):
+        c.execute('SELECT id, slur FROM toc WHERE slur = ?', (slur,))
         row = c.fetchone()
         if not row:
-            raise IntegrityError('No such page')
-        return row
-
-    @staticmethod
-    def _fetch_page_row(c, slur):
-        names = ('id', 'parent_id', 'next_id', 'first_content_id')
-        row = Db._fetch_page_fmt(c, slur, ','.join(names))
-        result = {}
-        for i, n in enumerate(names):
-            result[n] = row[i]
-        return result
-
-    @staticmethod
-    def check_page_id(c, slur):
-        return Db._fetch_page_fmt(c, slur, 'id')[0]
+            raise PageNotFoundError(slur)
+        return row[0]
 
 db = None
 if __name__ == '__main__':
