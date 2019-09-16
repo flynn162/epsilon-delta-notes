@@ -1,9 +1,18 @@
-from flask import request, render_template, url_for
-from page_view import DbTree, PageInfo, QueryBuilder
+from flask import request, render_template, url_for, redirect
+from page_view import DbTree, QueryBuilder
 from functools import wraps
-from sqlops import PageNotFoundError
+from sqlops import PageNotFoundError, Content, is_valid_slur, slur_to_link
+from sqlite3 import IntegrityError
+from os import urandom
+from base64 import b64encode
+from diff import print_diff
+import time
 
 db_query = str(QueryBuilder().upward())
+
+class ConcurrentEditError(IntegrityError):
+    def __init__(self):
+        super().__init__('Somebody changed the page when you were editing it')
 
 def needs_page_id(func):
     @wraps(func)
@@ -15,19 +24,76 @@ def needs_page_id(func):
     return result
 
 class EditPageDbReader(DbTree):
-    @staticmethod
-    def _put_current_node(c, page_id, page_info):
-        c.execute(db_query, {'id': page_id})
-        for row in c.fetchall():
-            page_info.load_tree_row(row)
+    def get_tree_cte(self):
+        return db_query
 
-    def get_page_info(self, slur):
-        return self._get_page_info(slur, DbEditPage._put_current_node)
-
-class EditPageDbWriter(Db):
+class EditPageDbWriter(DbTree):
     def __init__(self, db_uri):
         super().__init__(db_uri)
         self.page_id = None
+        self.content_list = None
+        self.content_ids = None
+
+    def handle_change(self, old_slur, new_slur, title, text_list, lock):
+        with self.auto_rollback() as c:
+            self.register(c, old_slur)
+            self.check_and_change_lock(c, lock)
+            self.change_metadata(c, new_slur, title)
+            self.patch_page(c, self.generate_patch(text_list))
+
+    def register(self, c, old_slur):
+        c.execute('SELECT id, first_content_id FROM toc WHERE slur = ?',
+                  (old_slur,))
+        row = c.fetchone()
+        if not row:
+            raise PageNotFoundError(old_slur)
+        self.page_id = row[0]
+        content = Content()
+        DbTree._load_content(c, self.page_id, content)
+        self.content_list = content.content_list_iter(row[1])
+        self.content_ids = content.content_id_iter(row[1])
+
+    def check_and_change_lock(self, c, lock):
+        if lock == '': lock = None
+        c.execute('SELECT content_lock FROM toc WHERE id = ?', (self.page_id,))
+        if c.fetchone()[0] != lock:
+            raise ConcurrentEditError()
+        new_lock = None
+        while new_lock == lock:
+            new_lock = b64encode(urandom(9), b'-_').decode('ascii')
+        c.execute('UPDATE toc SET content_lock = ? WHERE id = ?',
+                  (new_lock, self.page_id))
+
+    @needs_page_id
+    def change_metadata(self, c, new_slur, new_title):
+        new_slur = new_slur.strip()
+        if not is_valid_slur(new_slur):
+            raise IntegrityError('Invalid slur')
+
+        new_title = new_title.strip()
+        if not new_title:
+            raise IntegrityError('You need a title')
+
+        c.execute("""
+        UPDATE toc SET slur = ?, title = ?, mtime = ?
+        WHERE id = ?
+        """, (new_slur, new_title, self.page_id, int(time.time())))
+
+    def generate_patch(self, text_list):
+        filtered = filter(str.__len__, map(str.strip, text_list))
+        return print_diff(list(self.content_list), list(filtered))
+
+    def patch_page(self, c, patch):
+        last_id = 'front'
+        for action, operand in patch:
+            if action == '+':
+                self.insert_paragraph(c, last_id, operand)
+                last_id = 'lastinsert'
+            elif action == '-':
+                self.delete_paragraph(c, next(self.content_ids))
+                # don't update last_id, but still move on
+            else:
+                last_id = next(self.content_ids)
 
     @needs_page_id
     def append(self, c, content):
@@ -132,4 +198,16 @@ def handle_get(app):
                            content_lock=page_info.content_lock)
 
 def handle_post(app):
-    return str(request.form.getlist('text'))
+    text_list = request.form.getlist('text')
+    if request.form.get('button') != 'submit':
+        return 'You are not submitting'
+
+    with EditPageDbWriter(app.config['db_uri']) as db:
+        db.handle_change(request.form.get('old_slur', ''),
+                         request.form.get('new_slur', ''),
+                         request.form.get('title', ''),
+                         request.form.getlist('text'),
+                         request.form.get('content_lock', ''))
+
+    return redirect('{}{}'.format(url_for('view'),
+                                  slur_to_link(request.form['new_slur'])))

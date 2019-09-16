@@ -1,34 +1,4 @@
 from flask import escape
-from collections import deque
-from sqlops import slur_to_link
-
-class TreeNode:
-    def __init__(self, title, slur, children=None, selected=False):
-        self.title = title
-        self.slur = slur
-        self.children = children
-        self.selected = selected
-
-    def __repr__(self):
-        return '<TreeNode selected=%r title=%r slur=%r children=%r>' % (
-            self.selected,
-            self.title,
-            self.slur,
-            self.children
-        )
-
-    def append(self, child):
-        if self.children is None:
-            self.children = deque()
-        self.children.append(child)
-
-    def prepend(self, child):
-        if self.children is None:
-            self.children = deque()
-        self.children.appendleft(child)
-
-    def link(self):
-        return slur_to_link(self.slur)
 
 def compile_link(node, acc):
     acc.append('<div>')
