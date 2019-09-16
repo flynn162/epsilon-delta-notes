@@ -2,7 +2,7 @@ from flask import request, render_template, escape, Response
 from parser import compile_notes, Parser
 from sidebar import compile_tree
 from pathlib import Path
-from sqlops import Db, is_valid_slur, slur_to_link, QueryBuilder, Tree, Content
+from sqlops import Db, is_valid_slug, slug_to_link, QueryBuilder, Tree, Content
 from collections import deque
 import datetime
 
@@ -12,7 +12,7 @@ def row_to_link_tuple(row):
     if not row:
         return None
     else:
-        return row['title'], slur_to_link(row['slur'])
+        return row['title'], slug_to_link(row['slug'])
 
 class PageInfo(Content):
     def __init__(self, page_id):
@@ -78,10 +78,10 @@ class DbTree(Db):
         for row in c.fetchall():
             page_info.load_content_row(row)
 
-    def get_page_info(self, slur):
+    def get_page_info(self, slug):
         result = None
         with self.auto_rollback() as c:
-            page_id = Db.check_page_id(c, slur)
+            page_id = Db.check_page_id(c, slug)
             result = PageInfo(page_id)
             self.populate_page_info(c, page_id, result)
         result.compute()
@@ -101,14 +101,14 @@ class DbTree(Db):
         DbTree._load_content(c, page_id, page_info)
 
 def handle(app):
-    slur = request.args.get(':')
-    if not slur:
+    slug = request.args.get(':')
+    if not slug:
         return '<meta http-equiv="refresh" content="2; url=?:=home"> redirect'
-    if not is_valid_slur(slur):
+    if not is_valid_slug(slug):
         return 'Invalid page ID'
 
     with DbTree(app.config['db_uri']) as db:
-        page_info = db.get_page_info(slur)
+        page_info = db.get_page_info(slug)
 
     tree_html = compile_tree(page_info.tree)
     notes_html_list = []

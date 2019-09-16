@@ -1,11 +1,11 @@
 BEGIN TRANSACTION;
-INSERT INTO toc (id, parent_id, next_id, first_child_id, slur, title, first_content_id)
+INSERT INTO toc (id, parent_id, next_id, first_child_id, slug, title, first_content_id)
 VALUES (0, NULL, NULL, 1, 'home', 'Home', 1);
 
-INSERT INTO toc (id, parent_id, next_id, first_child_id, slur, title, first_content_id)
+INSERT INTO toc (id, parent_id, next_id, first_child_id, slug, title, first_content_id)
 VALUES (1, 0, NULL, 2, 'math', 'Math', NULL);
 
-INSERT INTO toc (id, parent_id, next_id, first_child_id, slur, title, first_content_id)
+INSERT INTO toc (id, parent_id, next_id, first_child_id, slug, title, first_content_id)
 VALUES (2, 1, NULL, NULL, 'units-of-zi', 'Units of Z[i]', 100);
 
 INSERT INTO content (id, parent_id, next_id, content)

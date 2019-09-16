@@ -2,7 +2,7 @@ from flask import escape
 
 def compile_link(node, acc):
     acc.append('<div>')
-    if node.slur == '...':
+    if node.slug == '...':
         acc.append('<span>...</span>')
     else:
         acc.append('<a href="%s">%s</a>' %

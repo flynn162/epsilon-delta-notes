@@ -4,6 +4,18 @@ Made for college students, a tool for organizing your notes.
 
 ![preview](readme_pics/zi.png)
 
+This software is in active development. The dependencies are listed in [dependencies.md](dependencies.md); you can generate a test DB by running:
+
+```
+./test/import_test_data.py
+```
+
+and run an experimental instance with:
+
+```
+./epsilon-delta-notes test/test.db -c settings.sample
+```
+
 ## Problem statement
 
 - Paper based notes are not searchable. You can't change/expand paper notes you have taken a long time ago.

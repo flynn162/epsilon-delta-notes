@@ -5,10 +5,10 @@ from contextlib import contextmanager
 from collections import deque
 
 res_dir = Path(__file__).absolute().parent
-slur_re = re.compile('^[a-zA-Z0-9_\\-]{1,100}$')
+slug_re = re.compile('^[a-zA-Z0-9_\\-]{1,100}$')
 
 toc_cols = ('id', 'parent_id', 'next_id', 'first_child_id', 'first_content_id',
-            'slur', 'title', 'mtime', 'content_lock')
+            'slug', 'title', 'mtime', 'content_lock')
 toc_cols_fullname = map(lambda s: 'toc.{0} as {0}'.format(s), toc_cols)
 
 toc_cols_str = ', '.join(toc_cols)
@@ -66,17 +66,17 @@ class QueryBuilder:
         )
 
 class TreeNode:
-    def __init__(self, title, slur, children=None, selected=False):
+    def __init__(self, title, slug, children=None, selected=False):
         self.title = title
-        self.slur = slur
+        self.slug = slug
         self.children = children
         self.selected = selected
 
     def __repr__(self):
-        return '<TreeNode selected=%r title=%r slur=%r children=%r>' % (
+        return '<TreeNode selected=%r title=%r slug=%r children=%r>' % (
             self.selected,
             self.title,
-            self.slur,
+            self.slug,
             self.children
         )
 
@@ -91,7 +91,7 @@ class TreeNode:
         self.children.appendleft(child)
 
     def link(self):
-        return slur_to_link(self.slur)
+        return slug_to_link(self.slug)
 
 class Tree:
     def __init__(self, rows, page_id):
@@ -131,7 +131,7 @@ class Tree:
             last_row = row
             children = self.iterate_children(row)
             node = TreeNode(row['title'],
-                            row['slur'],
+                            row['slug'],
                             selected=(row['id'] == self.page_id))
             self.make_children(children, node)
             acc.append(node)
@@ -166,11 +166,11 @@ class Content:
     def content_id_iter(self, id_start):
         return map(lambda r: r['id'], self.content_row_iter(id_start))
 
-def is_valid_slur(slur):
-    return slur_re.match(slur)
+def is_valid_slug(slug):
+    return slug_re.match(slug)
 
-def slur_to_link(slur):
-    return '?:=%s' % slur
+def slug_to_link(slug):
+    return '?:=%s' % slug
 
 class PageNotFoundError(sqlite3.DatabaseError):
     pass
@@ -209,9 +209,9 @@ class Db:
         self.close()
 
     @staticmethod
-    def check_page_id(c, slur):
-        c.execute('SELECT id, slur FROM toc WHERE slur = ?', (slur,))
+    def check_page_id(c, slug):
+        c.execute('SELECT id, slug FROM toc WHERE slug = ?', (slug,))
         row = c.fetchone()
         if not row:
-            raise PageNotFoundError(slur)
+            raise PageNotFoundError(slug)
         return row[0]

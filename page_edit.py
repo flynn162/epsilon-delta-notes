@@ -1,7 +1,7 @@
 from flask import request, render_template, url_for, redirect
 from page_view import DbTree, QueryBuilder
 from functools import wraps
-from sqlops import PageNotFoundError, Content, is_valid_slur, slur_to_link
+from sqlops import PageNotFoundError, Content, is_valid_slug, slug_to_link
 from sqlite3 import IntegrityError
 from os import urandom
 from base64 import b64encode
@@ -34,19 +34,19 @@ class EditPageDbWriter(DbTree):
         self.content_list = None
         self.content_ids = None
 
-    def handle_change(self, old_slur, new_slur, title, text_list, lock):
+    def handle_change(self, old_slug, new_slug, title, text_list, lock):
         with self.auto_rollback() as c:
-            self.register(c, old_slur)
+            self.register(c, old_slug)
             self.check_and_change_lock(c, lock)
-            self.change_metadata(c, new_slur, title)
+            self.change_metadata(c, new_slug, title)
             self.patch_page(c, self.generate_patch(text_list))
 
-    def register(self, c, old_slur):
-        c.execute('SELECT id, first_content_id FROM toc WHERE slur = ?',
-                  (old_slur,))
+    def register(self, c, old_slug):
+        c.execute('SELECT id, first_content_id FROM toc WHERE slug = ?',
+                  (old_slug,))
         row = c.fetchone()
         if not row:
-            raise PageNotFoundError(old_slur)
+            raise PageNotFoundError(old_slug)
         self.page_id = row[0]
         content = Content()
         DbTree._load_content(c, self.page_id, content)
@@ -65,19 +65,19 @@ class EditPageDbWriter(DbTree):
                   (new_lock, self.page_id))
 
     @needs_page_id
-    def change_metadata(self, c, new_slur, new_title):
-        new_slur = new_slur.strip()
-        if not is_valid_slur(new_slur):
-            raise IntegrityError('Invalid slur')
+    def change_metadata(self, c, new_slug, new_title):
+        new_slug = new_slug.strip()
+        if not is_valid_slug(new_slug):
+            raise IntegrityError('Invalid slug')
 
         new_title = new_title.strip()
         if not new_title:
             raise IntegrityError('You need a title')
 
         c.execute("""
-        UPDATE toc SET slur = ?, title = ?, mtime = ?
+        UPDATE toc SET slug = ?, title = ?, mtime = ?
         WHERE id = ?
-        """, (new_slur, new_title, self.page_id, int(time.time())))
+        """, (new_slug, new_title, self.page_id, int(time.time())))
 
     def generate_patch(self, text_list):
         filtered = filter(str.__len__, map(str.strip, text_list))
@@ -182,9 +182,9 @@ class EditPageDbWriter(DbTree):
         """, (after_content_id,))
 
 def handle_get(app):
-    slur = request.args.get(':')
+    slug = request.args.get(':')
     with EditPageDbReader(app.config['db_uri']) as db:
-        page_info = db.get_page_info(slur)
+        page_info = db.get_page_info(slug)
 
     title = 'Editing %s' % page_info.title
     path = [(t, '{}{}'.format(url_for('view'), l))
@@ -192,7 +192,7 @@ def handle_get(app):
     return render_template('edit.html',
                            title=title,
                            article_title=page_info.title,
-                           slur=slur,
+                           slug=slug,
                            path=path,
                            content_list=page_info.content_list,
                            content_lock=page_info.content_lock)
@@ -203,11 +203,11 @@ def handle_post(app):
         return 'You are not submitting'
 
     with EditPageDbWriter(app.config['db_uri']) as db:
-        db.handle_change(request.form.get('old_slur', ''),
-                         request.form.get('new_slur', ''),
+        db.handle_change(request.form.get('old_slug', ''),
+                         request.form.get('new_slug', ''),
                          request.form.get('title', ''),
                          request.form.getlist('text'),
                          request.form.get('content_lock', ''))
 
     return redirect('{}{}'.format(url_for('view'),
-                                  slur_to_link(request.form['new_slur'])))
+                                  slug_to_link(request.form['new_slug'])))
