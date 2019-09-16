@@ -79,10 +79,10 @@ class EditPageDbWriter(Db):
         if after_content_id == 'front':
             self._insert_at_front(c, content)
         elif after_content_id == 'lastinsert':
-            c.execute('SELECT last_insert_row_id()')
-            self._insert(self, c.fetchone()[0], content)
+            c.execute('SELECT last_insert_rowid()')
+            self._insert(c, c.fetchone()[0], content)
         else:
-            self._insert(self, after_content_id, content)
+            self._insert(c, after_content_id, content)
 
     def _insert_at_front(self, c, content):
         c.execute("""
@@ -97,7 +97,7 @@ class EditPageDbWriter(Db):
         WHERE id = ?
         """, (self.page_id,))
 
-    def _insert(self, after_content_id, content):
+    def _insert(self, c, after_content_id, content):
         # check if id exists
         c.execute('SELECT parent_id, next_id FROM content WHERE id = ?',
                   (after_content_id,))
