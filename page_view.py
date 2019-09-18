@@ -1,5 +1,5 @@
 from flask import request, render_template, escape, Response
-from parser import compile_notes, Parser
+from parsing import compile_notes, Parser
 from sidebar import compile_tree
 from pathlib import Path
 from sqlops import Db, is_valid_slug, slug_to_link, QueryBuilder, Tree, Content
