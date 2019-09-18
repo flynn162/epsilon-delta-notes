@@ -98,11 +98,17 @@ form label {
     border: 1px solid #ccc;
     border-radius: 5px;
     box-sizing: border-box;
+    font-family: monospace;
+}
+
+textarea.textarea {
     resize: vertical;
     min-height: 5em;
     max-height: calc(100vh - 5em);
-    overflow: auto;
-    font-family: monospace;
+}
+
+.textarea > .CodeMirror {
+    height: auto;
 }
 
 .textbox-container {
