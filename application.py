@@ -23,7 +23,7 @@ def load_as_file(path_str):
     if not path_str:
         return None
     else:
-        path = Path(path_str).resolve(True)
+        path = Path(path_str).resolve()
         if not path.is_file():
             raise FileNotFoundError('%s is not a file' % str(path))
         return path
