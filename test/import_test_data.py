@@ -11,7 +11,7 @@ import sqlops
 
 class DbTest(sqlops.Db):
     def _read_script(self):
-        with open(res_dir / 'test/test_data.sql', 'r', encoding='utf-8') as f:
+        with open(str(res_dir / 'test/test_data.sql'), 'r') as f:
             test_data_sql = f.read()
         c = self.conn.cursor()
         c.executescript(test_data_sql)
@@ -20,7 +20,8 @@ class DbTest(sqlops.Db):
         files = glob.glob(str(res_dir / folder / '*.scrbl'))
         content = []
         for i in range(len(files)):
-            with open(res_dir / folder / ('%d.scrbl' % (i+1)), 'r') as f:
+            scrbl_path = res_dir / folder / ('%d.scrbl' % (i+1))
+            with open(str(scrbl_path), 'r') as f:
                 content.append(f.read())
         c = self.conn.cursor()
         c.execute('BEGIN')

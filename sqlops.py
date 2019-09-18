@@ -194,7 +194,7 @@ class Db:
             raise e from e
 
     def create_tables(self):
-        with open(res_dir / 'schema.sql', 'r', encoding='utf-8') as f:
+        with open(str(res_dir / 'schema.sql'), 'r', encoding='utf-8') as f:
             schema_sql = f.read()
         c = self.conn.cursor()
         c.executescript(schema_sql)

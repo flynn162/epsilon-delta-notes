@@ -48,7 +48,7 @@ def load_config():
         return
 
     config = RawConfigParser()
-    config.read(config_path)
+    config.read(str(config_path))
     if not app.config['img_dir']:
         load_img_dir(config['default'].get('img_dir'), 'images')
 
