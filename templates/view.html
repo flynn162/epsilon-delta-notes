@@ -66,8 +66,12 @@
     [[ End of page, some meta-information follows: ]]
   </p>
 
-  {% if date_modified %}
-  <span>Last modified {{ date_modified }}</span>
+  {% if mtime_str %}
+  <span>Last modified
+    <time title="{{ mtime_str[1] }}" datetime="{{ mtime_str[0] }}">
+      {{ mtime_str[0] }}
+    </time>
+  </span>
   <span class="sep">|</span>
   {% endif %}
   Powered by

@@ -77,7 +77,7 @@ class EditPageDbWriter(DbTree):
         c.execute("""
         UPDATE toc SET slug = ?, title = ?, mtime = ?
         WHERE id = ?
-        """, (new_slug, new_title, self.page_id, int(time.time())))
+        """, (new_slug, new_title, int(time.time()), self.page_id))
 
     def generate_patch(self, text_list):
         filtered = filter(str.__len__, map(str.strip, text_list))

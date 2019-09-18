@@ -4,7 +4,7 @@ from sidebar import compile_tree
 from pathlib import Path
 from sqlops import Db, is_valid_slug, slug_to_link, QueryBuilder, Tree, Content
 from collections import deque
-import datetime
+from datetime import datetime, timezone
 
 tree_query_cte = str(QueryBuilder().forward().backward().upward().downward())
 
@@ -13,6 +13,13 @@ def row_to_link_tuple(row):
         return None
     else:
         return row['title'], slug_to_link(row['slug'])
+
+def utc_to_local_with_title(unix_seconds):
+    utc = datetime.utcfromtimestamp(unix_seconds).replace(tzinfo=timezone.utc)
+    local = utc.astimezone(tz=None)
+    display = local.strftime('%Y-%m-%d')
+    title = '%s (%s)' % (display, local.tzname())
+    return display, title
 
 class PageInfo(Content):
     def __init__(self, page_id):
@@ -61,8 +68,7 @@ class PageInfo(Content):
         self.title = current_row['title']
 
         if current_row['mtime'] is not None:
-            self.mtime_str = datetime.utcfromtimestamp(current_row['mtime']) \
-                                     .strptime('%Y-%m-%d')
+            self.mtime_str = utc_to_local_with_title(current_row['mtime'])
 
         self.tree = Tree(self.acc, self.page_id).into()
         self.path = self.compute_path()
@@ -125,6 +131,7 @@ def handle(app):
         directory_of_page=page_info.path,
         prev_article=page_info.prev,
         next_article=page_info.next,
+        mtime_str=page_info.mtime_str,
         sidebar_html=tree_html,
         notes_html_list=notes_html_list
     )
