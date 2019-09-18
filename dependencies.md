@@ -1,7 +1,7 @@
 Epsilon-Delta Notes depends on the following packages
 
 ### Python
-- python3.6 (with sqlite support)
+- python3.5+ (with sqlite support)
 - flask
 - pyparsing
 - pytest
