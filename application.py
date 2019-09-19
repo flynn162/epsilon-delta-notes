@@ -71,6 +71,9 @@ def edit():
     else:
         return page_edit.handle_post(app)
 
+@app.route('/new', methods=['GET', 'POST'])
+def new():
+    return 'I can use new as a function name in Python!'
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():

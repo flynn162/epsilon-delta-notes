@@ -1,4 +1,4 @@
-from flask import request, render_template, escape, Response
+from flask import request, render_template, escape, Response, url_for
 from parsing import compile_notes, Parser
 from sidebar import compile_tree
 from pathlib import Path
@@ -128,6 +128,7 @@ def handle(app):
     return render_template(
         'view.html',
         title=page_info.title,
+        nav_edit=url_for('edit') + slug_to_link(slug),
         directory_of_page=page_info.path,
         prev_article=page_info.prev,
         next_article=page_info.next,

@@ -19,6 +19,10 @@ body {
     min-height: 100%;
 }
 
+header {
+    text-align: right;
+}
+
 .dual-col-container {
     display: flex;  /* flex container */
     flex-direction: row;
