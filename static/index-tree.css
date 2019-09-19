@@ -1,0 +1,41 @@
+:root {
+    --darker-gold: #ffd5ab;
+    --lighter-gold: #ffeedd;
+}
+
+.left li {
+    list-style: none;
+}
+
+.left ul {
+    padding-left: 0.75em;
+}
+
+.left li > div {
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+li.selected > :not(ul), li.selected::marker {
+    color: var(--purple-fg);
+    font-weight: bold;
+}
+
+.left li > div {
+    padding-left: 0.5em;
+}
+
+.left a {
+    display: block;
+}
+
+
+.col.left {
+    padding-left: 0;
+    padding-right: 0.2in;
+}
+
+.left li.selected > div {
+    border-left: 2px solid var(--darker-gold);
+    background-color: var(--lighter-gold);
+}

@@ -35,31 +35,6 @@ body {
     line-height: 1.2;
 }
 
-.left ul {
-    list-style-type: "🡪";
-    list-style-position: outside;
-    padding-left: 20px;
-}
-
-li.expanded {
-    list-style-type: "🡪";
-    /*"⯆";*/  /* black medium down pointing triangle centered */
-}
-
-li.selected, li.selected.expanded {
-    list-style-type: "↠";
-    /*"⯈";*/  /* black medium right pointing triangle centered */
-}
-
-li.selected > :not(ul), li.selected::marker {
-    color: var(--purple-fg);
-    font-weight: bold;
-}
-
-.left li > div {
-    padding-left: 0.5em;
-}
-
 .left a {
     text-decoration: none;
     color: inherit;
