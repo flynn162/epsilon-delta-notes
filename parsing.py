@@ -238,18 +238,18 @@ class Parser(object):
         try:
             first_word = next()
         except StopIteration as e:
-            raise ParserError('page link: no valid strings found') from e
+            raise ValueError('page link: no valid strings found') from e
         try:
             first_word = first_word.strip()
         except AttributeError as e:
-            raise ParserError('page link: first word must be a string') from e
+            raise TypeError('page link: first word must be a string') from e
         # check if we need title
         needs_title = True
         if first_word.endswith(':'):
             needs_title = False
             first_word = first_word[:-1]
         if not is_valid_slug(first_word):
-            raise ParserError('Invalid slug: %r' % (first_word,))
+            raise ValueError('Invalid slug: %r' % (first_word,))
         if need_title:
             self.acc.add_slug(first_word)
         else:
