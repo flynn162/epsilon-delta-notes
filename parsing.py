@@ -4,6 +4,7 @@ from functools import wraps
 from pyparsing import Word, Literal, Optional, CharsNotIn, OneOrMore, Combine
 from pyparsing import alphas, nums, quotedString
 from pyparsing import nestedExpr, locatedExpr, ParserElement, ParseResults
+from sqlops import is_valid_slug
 
 # make \n significant
 ParserElement.setDefaultWhitespaceChars(' \t')
@@ -74,26 +75,54 @@ def rescan_for_line_breaks(params):
     if linewrap_acc > 0:
         yield ('\n' * linewrap_acc)
 
+class ParserAcc(object):
+    __slots__ = ('_slugs', 'slug_title_map')
+
+    def __init__(self):
+        self._slugs = set()
+        self.slug_title_map = {}
+
+    def add_slug(self, slug):
+        self._slugs.add(slug)
+
+    def put_title(self, slug, title):
+        if title is not None:
+            self.slug_title_map[slug] = title
+
+    def get(self, slug, default=None):
+        return self.slug_title_map.get(slug, default)
+
+    def unprocessed_slugs(self):
+        for slug in self._slugs:
+            if slug not in self.slug_title_map:
+                yield slug
+
 class Parser(object):
     __slots__ = ('unesc_mode',
                  'bracket_counter',
                  'line_counter',
-                 'last_open_bracket')
+                 'last_open_bracket',
+                 'acc')
 
     def __init__(self):
         self.unesc_mode = False
         self.bracket_counter = 0
         self.line_counter = 1
         self.last_open_bracket = None
+        self.acc = ParserAcc()
+
+    def tokenize(self, string):
+        tokens = scribble.parseString(string.replace('\r', ''))
+        tokens = rescan_for_line_breaks(tokens)
+        return iter(tokens)
 
     @convert_error
     def parse_string(self, string):
-        tokens = scribble.parseString(string.replace('\r', ''))
-        tokens = rescan_for_line_breaks(tokens)
-        return self.parse_tokens_into_list(iter(tokens))
+        tokens = self.tokenize(string)
+        return self.parse_into_list(tokens)
 
     @convert_error
-    def parse_tokens_into_list(self, tokens):
+    def parse_into_list(self, tokens):
         """Converts tokens into a linked list (AST)
         tokens: an iterator that yields tokens
         token: String | LocationObject
@@ -148,11 +177,14 @@ class Parser(object):
                 raise ValueError('Expecting { or |{')
             mode = token.value
         self.bracket_counter += 1
+        # get parameters
         cons = Cons(operator_name, [])
         if mode == '|{':
             self.handle_list_unesc(tokens, cons)
         else:
             self.handle_list_regular(tokens, cons)
+        # check if we need to fetch something from db later
+        self.put_links_in_accumulator(cons)
         result.params.append(cons)
 
     @convert_error
@@ -189,6 +221,41 @@ class Parser(object):
         # return control to the caller
         self.bracket_counter -= 1
 
+    @convert_error
+    def put_links_in_accumulator(self, current_node):
+        if current_node.data != 'page':
+            return
+        # probe the first word and check if it is valid
+        done = False
+        def params_lstrip(s):
+            nonlocal done
+            if done:
+                return True
+            if not(isinstance(s, str)) or len(s.strip()) > 0:
+                done = True
+                return s
+        iterator = filter(params_lstrip, current_node.parms)
+        try:
+            first_word = next()
+        except StopIteration as e:
+            raise ParserError('page link: no valid strings found') from e
+        try:
+            first_word = first_word.strip()
+        except AttributeError as e:
+            raise ParserError('page link: first word must be a string') from e
+        # check if we need title
+        needs_title = True
+        if first_word.endswith(':'):
+            needs_title = False
+            first_word = first_word[:-1]
+        if not is_valid_slug(first_word):
+            raise ParserError('Invalid slug: %r' % (first_word,))
+        if need_title:
+            self.acc.add_slug(first_word)
+        else:
+            # put in the rest of the iterator as title
+            self.acc.put_title(first_word, list(iterator))
+
 # 1st pass: tokenize
 # 2nd pass: convert tokens into Cons (AST)
 # 3rd pass: convert AST into HTML
@@ -196,9 +263,10 @@ class Parser(object):
 # html transpiler
 
 class Accumulator:
-    def __init__(self):
+    def __init__(self, parser_acc):
         self.output = []
         self.footnotes = []
+        self.parser_acc = parser_acc
 
     def append(self, s):
         self.output.append(s)
@@ -206,8 +274,19 @@ class Accumulator:
     def queue_footnote(self, footnote):
         self.footnotes.append(footnote)
 
-def compile_notes(ast):
-    acc = Accumulator()
+    def get_title(self, slug, default=None):
+        return self.parser_acc.get(slug, default)
+
+HANDLERS = {}
+
+def handles(name):
+    def decorator(method):
+        HANDLERS[name] = method
+        return method
+    return decorator
+
+def compile_notes(ast, parser_acc):
+    acc = Accumulator(parser_acc)
     acc.append('\n<!-- compilation starts -->\n')
     continuation = iter(ast.params)
     while continuation:
@@ -251,16 +330,18 @@ def _compile_notes(params, acc, use_p=True):
         acc.append('</div>')
     return None
 
+@handles('twocol')
 def compile_two_cols(params, acc):
     params = list(filter(lambda a: isinstance(a, Cons), params))
     if len(params) != 2:
-        print(repr(params))
         raise ValueError('Left and right, not %d' % len(params))
     acc.append('<div class="col-container">')
     _compile_single_col('col-left', params[0], acc)
     _compile_single_col('col-right', params[1], acc)
     acc.append('</div>')
 
+@handles('note')
+@handles('margin-note')
 def queue_footnote(params, acc):
     acc.queue_footnote(params)
 
@@ -281,9 +362,11 @@ def compile_footnote(params, acc):
     _compile_notes(params, acc)
     acc.append('</div></div>')
 
+@handles('Math')
 def compile_display_math(params, acc):
     _compile_math(params, acc, display=True)
 
+@handles('math')
 def compile_inline_math(params, acc):
     _compile_math(params, acc, display=False)
 
@@ -298,34 +381,23 @@ def _compile_math(params, acc, display):
     acc.append('%s</span>' % dollar_sign)
     acc.append('</div>')
 
+@handles('list')
+@handles('p')
 def no_operation(params, acc):
     pass
 
+@handles('italic')
 def compile_italic(params, acc):
-    compile_single_tag('i', params, acc)
+    _compile_single_tag('i', params, acc)
 
+@handles('bold')
 def compile_bold(params, acc):
-    compile_single_tag('b', params, acc)
+    _compile_single_tag('b', params, acc)
 
-def compile_single_tag(tag, params, acc):
+def _compile_single_tag(tag, params, acc):
     acc.append('<%s>' % tag)
     _compile_notes(params, acc, use_p=False)
     acc.append('</%s>' % tag)
-
-
-HANDLERS = {
-    'p': no_operation,
-    'list': no_operation,
-
-    'math': compile_inline_math,
-    'Math': compile_display_math,
-    'twocol': compile_two_cols,
-    'note': queue_footnote,
-    'margin-note': queue_footnote,
-
-    'italic': compile_italic,
-    'bold': compile_bold
-}
 
 content = None
 result = None

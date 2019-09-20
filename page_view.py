@@ -118,9 +118,10 @@ def handle(app):
 
     tree_html = compile_tree(page_info.tree)
     notes_html_list = []
+    parser = Parser()
     for content in page_info.content_list:
-        cons = Parser().parse_string(content)
-        notes_html_list.append(compile_notes(cons))
+        cons = parser.parse_string(content)
+        notes_html_list.append(compile_notes(cons, parser.acc))
 
     # use the "directory" part only
     page_info.path.pop()
