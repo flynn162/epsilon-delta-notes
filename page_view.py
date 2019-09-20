@@ -106,6 +106,19 @@ class DbTree(Db):
         # load content
         DbTree._load_content(c, page_id, page_info)
 
+class DbTitle(Db):
+    def put_titles_in(self, parser_acc):
+        unproc = list(parser_acc.unprocessed_slugs())
+        if not unproc:
+            return
+        query = 'SELECT slug, title FROM toc WHERE slug in ({})'.format(
+            ','.join(map(lambda _: '?', unproc))
+        )
+        with self.auto_rollback() as c:
+            c.execute(query, unproc)
+            for row in c:
+                parser_acc.put_title(row[0], row[1])
+
 def handle(app):
     slug = request.args.get(':')
     if not slug:
@@ -119,9 +132,10 @@ def handle(app):
     tree_html = compile_tree(page_info.tree)
     notes_html_list = []
     parser = Parser()
-    for content in page_info.content_list:
-        cons = parser.parse_string(content)
-        notes_html_list.append(compile_notes(cons, parser.acc))
+    ast_list = [parser.parse_string(ct) for ct in page_info.content_list]
+    with DbTitle(app.config['db_uri']) as db:
+        db.put_titles_in(parser.acc)
+    notes_html_list = [compile_notes(cons, parser.acc) for cons in ast_list]
 
     # use the "directory" part only
     page_info.path.pop()

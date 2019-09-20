@@ -79,6 +79,10 @@ header {
     padding-right: 0.25em;
 }
 
+a.dne {
+    color: #de0000;
+}
+
 .has-right-margin {
     width: 82.4%;
 }

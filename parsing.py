@@ -1,10 +1,11 @@
 import re
-from flask import escape
+from flask import escape, url_for
 from functools import wraps
 from pyparsing import Word, Literal, Optional, CharsNotIn, OneOrMore, Combine
 from pyparsing import alphas, nums, quotedString
 from pyparsing import nestedExpr, locatedExpr, ParserElement, ParseResults
-from sqlops import is_valid_slug
+from sqlops import is_valid_slug, slug_to_link
+from itertools import chain
 
 # make \n significant
 ParserElement.setDefaultWhitespaceChars(' \t')
@@ -96,6 +97,42 @@ class ParserAcc(object):
         for slug in self._slugs:
             if slug not in self.slug_title_map:
                 yield slug
+
+def params_lstrip(params):
+    done = False
+    def filter_function(s):
+        nonlocal done
+        if done:
+            return True
+        if not(isinstance(s, str)) or len(s.strip()) > 0:
+            done = True
+            return s
+    return filter(filter_function, params)
+
+def extract_slug_and_title(params):
+    # probe the first word and check if it is valid
+    iterator = params_lstrip(params)
+    rest = None
+    try:
+        first_word = next(iterator)
+    except StopIteration as e:
+        raise ValueError('page link: no valid strings found') from e
+    try:
+        first_word = first_word.strip()
+        first, colon, rest = first_word.partition(':')
+        if colon:
+            first_word = first
+    except AttributeError as e:
+        raise TypeError('page link: first word must be a string') from e
+    # check if we need title
+    needs_title = True
+    if first_word.endswith(':'):
+        needs_title = False
+        first_word = first_word[:-1]
+    if not is_valid_slug(first_word):
+        raise ValueError('Invalid slug: %r' % (first_word,))
+    # return the slug and the rest of the params
+    return first_word, list(params_lstrip(chain([rest], iterator)))
 
 class Parser(object):
     __slots__ = ('unesc_mode',
@@ -225,36 +262,8 @@ class Parser(object):
     def put_links_in_accumulator(self, current_node):
         if current_node.data != 'page':
             return
-        # probe the first word and check if it is valid
-        done = False
-        def params_lstrip(s):
-            nonlocal done
-            if done:
-                return True
-            if not(isinstance(s, str)) or len(s.strip()) > 0:
-                done = True
-                return s
-        iterator = filter(params_lstrip, current_node.parms)
-        try:
-            first_word = next()
-        except StopIteration as e:
-            raise ValueError('page link: no valid strings found') from e
-        try:
-            first_word = first_word.strip()
-        except AttributeError as e:
-            raise TypeError('page link: first word must be a string') from e
-        # check if we need title
-        needs_title = True
-        if first_word.endswith(':'):
-            needs_title = False
-            first_word = first_word[:-1]
-        if not is_valid_slug(first_word):
-            raise ValueError('Invalid slug: %r' % (first_word,))
-        if need_title:
-            self.acc.add_slug(first_word)
-        else:
-            # put in the rest of the iterator as title
-            self.acc.put_title(first_word, list(iterator))
+        slug, title = extract_slug_and_title(current_node.params)
+        self.acc.add_slug(slug)
 
 # 1st pass: tokenize
 # 2nd pass: convert tokens into Cons (AST)
@@ -398,6 +407,21 @@ def _compile_single_tag(tag, params, acc):
     acc.append('<%s>' % tag)
     _compile_notes(params, acc, use_p=False)
     acc.append('</%s>' % tag)
+
+@handles('page')
+def compile_internal_link(params, acc):
+    slug, placeholder = extract_slug_and_title(params)
+    real_title = acc.get_title(slug)
+    if not real_title:  # if still no title
+        acc.append('<a href="%s%s" class="dne" title="Page does not exist">' %
+                   (url_for('new'), slug_to_link(slug)))
+        _compile_notes(placeholder or slug, acc, use_p=False)
+        acc.append('</a>')
+    else:
+        acc.append('<a href="%s%s">' %
+                   (url_for('view'), slug_to_link(slug)))
+        _compile_notes(placeholder or real_title, acc, use_p=False)
+        acc.append('</a>')
 
 content = None
 result = None
