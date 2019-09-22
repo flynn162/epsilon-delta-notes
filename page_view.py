@@ -130,12 +130,11 @@ def handle(app):
         page_info = db.get_page_info(slug)
 
     tree_html = compile_tree(page_info.tree)
-    notes_html_list = []
     parser = Parser()
     ast_list = [parser.parse_string(ct) for ct in page_info.content_list]
     with DbTitle(app.config['db_uri']) as db:
         db.put_titles_in(parser.acc)
-    notes_html_list = [compile_notes(cons, parser.acc) for cons in ast_list]
+    notes_html_list = (compile_notes(cons, parser.acc) for cons in ast_list)
 
     # use the "directory" part only
     page_info.path.pop()
