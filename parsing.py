@@ -41,10 +41,10 @@ class Cons(object):
 class ParserError(RuntimeError):
     def __init__(self, parser):
         super().__init__()
-        self.state = parser
+        self.line = parser.line_counter
 
     def __str__(self):
-        return 'At line %d' % (self.state.line_counter,)
+        return 'At line %d' % (self.line,)
 
 def convert_error(method):
     @wraps(method)
@@ -141,34 +141,37 @@ class Parser(object):
                  'bracket_counter',
                  'line_counter',
                  'last_open_bracket',
-                 'acc')
+                 'acc',
+                 'slug')
 
-    def __init__(self):
+    def __init__(self, slug):
         self.unesc_mode = False
         self.bracket_counter = 0
         self.line_counter = 1
         self.last_open_bracket = None
         self.acc = ParserAcc()
+        self.slug = slug
 
     def tokenize(self, string):
         tokens = scribble.parseString(string.replace('\r', ''))
         tokens = rescan_for_line_breaks(tokens)
         return iter(tokens)
 
-    def parse_string(self, string):
+    def parse_string(self, string, pid):
         self.line_counter = 1
 
         try:
             tokens = self.tokenize(string)
             return self.parse_into_list(tokens)
         except ParserError as e:
-            ty, val, tb = sys.exc_info()
-            return self.exception_to_list(ty, val, tb)
+            return self.exception_to_list(pid, sys.exc_info())
 
-    def exception_to_list(self, ty, val, tb):
-        return Cons('p',
-                    [Cons('.exception',
-                          traceback.format_exception(ty, val, tb))])
+    def exception_to_list(self, pid, exc_info):
+        params = [self.slug, str(pid), str(exc_info[1].line)]
+        for p in traceback.format_exception(*exc_info):
+            params.append(p)
+
+        return Cons('p', [Cons('.exception', params)])
 
     @convert_error
     def parse_into_list(self, tokens):
@@ -437,6 +440,10 @@ def compile_internal_link(params, acc):
 
 @handles('.exception')
 def compile_exception(params, acc):
+    params = iter(params)
+    slug = next(params)
+    pid = next(params)
+    line_number = next(params)
     acc.append('<div class="exception">')
     for p in params:
         for line in p.rstrip('\n').split('\n'):
@@ -444,6 +451,13 @@ def compile_exception(params, acc):
             acc.append(escape(line.replace(' ', '\xa0')))
             acc.append('</code><br>\n')
     acc.append('</div>')
+    # "edit" link
+    url = '{0}{1}&id={2}&line={3}'.format(
+        url_for('edit'), slug_to_link(slug), pid, line_number
+    )
+    acc.append('<a class="nav" href="')
+    acc.append(escape(url))
+    acc.append('">Edit</a>')
 
 content = None
 result = None

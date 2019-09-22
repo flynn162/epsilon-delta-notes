@@ -73,7 +73,7 @@ class PageInfo(Content):
         self.tree = Tree(self.acc, self.page_id).into()
         self.path = self.compute_path()
         id_start = self.acc[self.page_id]['first_content_id']
-        self.content_list = self.content_list_iter(id_start)
+        self.register_content_id(id_start)
 
 class DbTree(Db):
     @staticmethod
@@ -130,8 +130,9 @@ def handle(app):
         page_info = db.get_page_info(slug)
 
     tree_html = compile_tree(page_info.tree)
-    parser = Parser()
-    ast_list = [parser.parse_string(ct) for ct in page_info.content_list]
+    parser = Parser(slug)
+    ast_list = [parser.parse_string(string, content_id)
+                for string, content_id in page_info.content_pair_iter()]
     with DbTitle(app.config['db_uri']) as db:
         db.put_titles_in(parser.acc)
     notes_html_list = (compile_notes(cons, parser.acc) for cons in ast_list)

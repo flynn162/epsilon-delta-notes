@@ -20,6 +20,14 @@ You are editing
   {%- endfor -%}
 </span>
 
+{% if focus %}
+<p>
+  <span class="nav">
+    <a id="hl" href="#highlighted">(Jump to highlighted paragraph)</a>
+  </span>
+</p>
+{% endif %}
+
 {% endblock %}
 
 {% block right %}
@@ -61,9 +69,16 @@ You are editing
 <!-- accessibility -->
 <p class="visually-hidden" id="main-content-anchor">&nbsp;</p>
 
+{% if focus %}
+<span class="visually-hidden nav">
+  <a class="hl" href="#highlighted">
+    A paragraph is highlighted. You can try jumping to it.
+  </a>
+</span>
+{% endif %}
+
 <div class="content">
   <div class="has-right-margin">
-
     <form id="form" action="{{ url_for('edit') }}" method="POST">
       <!-- hidden field for writer lock -->
       <input type="hidden" name="content_lock" value="{{ content_lock or '' }}">
@@ -82,9 +97,16 @@ You are editing
 
       <!-- article content -->
       <div id="textboxes">
-        {% for content in content_list %}
+        {% for content, pid in content_pair_iter %}
         <div class="textbox-container">
-          <div class="scroll-anchor"></div>
+          {%- if pid == focus -%}
+          <span class="nav">Highlighted paragraph:</span>
+          {%- endif -%}
+          <div class="scroll-anchor"
+               {% if pid == focus %}
+               id="highlighted"
+               {% endif %}>
+          </div>
           <textarea name="text" class="textarea">{{ content }}</textarea>
           <div class="textarea visually-hidden" aria-hidden="true"></div>
         </div>

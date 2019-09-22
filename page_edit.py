@@ -7,6 +7,7 @@ from os import urandom
 from base64 import b64encode
 from diff import print_diff
 import time
+from operator import itemgetter
 
 db_query = str(QueryBuilder().upward())
 
@@ -31,8 +32,7 @@ class EditPageDbWriter(DbTree):
     def __init__(self, db_uri):
         super().__init__(db_uri)
         self.page_id = None
-        self.content_list = None
-        self.content_ids = None
+        self.content_pair_iter = None
 
     def handle_change(self, old_slug, new_slug, title, text_list, lock):
         with self.auto_rollback() as c:
@@ -50,8 +50,8 @@ class EditPageDbWriter(DbTree):
         self.page_id = row[0]
         content = Content()
         DbTree._load_content(c, self.page_id, content)
-        self.content_list = content.content_list_iter(row[1])
-        self.content_ids = content.content_id_iter(row[1])
+        content.register_content_id(row[1])
+        self.content_pair_iter = content.content_pair_iter
 
     def check_and_change_lock(self, c, lock):
         if lock == '': lock = None
@@ -80,20 +80,22 @@ class EditPageDbWriter(DbTree):
         """, (new_slug, new_title, int(time.time()), self.page_id))
 
     def generate_patch(self, text_list):
+        content_list = map(itemgetter(0), self.content_pair_iter())
         filtered = filter(str.__len__, map(str.strip, text_list))
-        return print_diff(list(self.content_list), list(filtered))
+        return print_diff(list(content_list), list(filtered))
 
     def patch_page(self, c, patch):
+        content_ids = map(itemgetter(1), self.content_pair_iter())
         last_id = 'front'
         for action, operand in patch:
             if action == '+':
                 self.insert_paragraph(c, last_id, operand)
                 last_id = 'lastinsert'
             elif action == '-':
-                self.delete_paragraph(c, next(self.content_ids))
+                self.delete_paragraph(c, next(content_ids))
                 # don't update last_id, but still move on
             else:
-                last_id = next(self.content_ids)
+                last_id = next(content_ids)
 
     @needs_page_id
     def append(self, c, content):
@@ -183,6 +185,11 @@ class EditPageDbWriter(DbTree):
 
 def handle_get(app):
     slug = request.args.get(':')
+    try:
+        content_id = int(request.args.get('id', ''))
+    except ValueError:
+        content_id = None
+
     with EditPageDbReader(app.config['db_uri']) as db:
         page_info = db.get_page_info(slug)
 
@@ -194,7 +201,8 @@ def handle_get(app):
                            article_title=page_info.title,
                            slug=slug,
                            path=path,
-                           content_list=page_info.content_list,
+                           focus=content_id,
+                           content_pair_iter=page_info.content_pair_iter(),
                            content_lock=page_info.content_lock)
 
 def handle_post(app):

@@ -296,6 +296,8 @@ function Editor() {
     };
 
     this.loadTextIntoLinkedList = function () {
+        let highlighted = null;
+
         for (var el of document.querySelectorAll('div.textarea')) {
             let container = el.parentElement;
             // migrate text
@@ -313,12 +315,18 @@ function Editor() {
             changeA11yAttribs(el);
             this.addCmListeners(cm, node);
             cm.refresh();
+            // highlighted?
+            if (container.querySelector('#highlighted') != null) {
+                highlighted = cm;
+            }
         }
+
+        return highlighted;
     };
 
     this.initializeState();
     // prepare text
-    this.loadTextIntoLinkedList();
+    let highlighted = this.loadTextIntoLinkedList();
     // register listeners
     this.disableButtons();
     let ids = ['btn-add', 'btn-up', 'btn-down', 'btn-delete'];
@@ -335,6 +343,15 @@ function Editor() {
         // rebind `this`
         () => this.onSubmit()
     );
+    // highlighted paragrah
+    if (highlighted != null) {
+        let scrollAnchor = document.querySelector('#highlighted');
+        scrollAnchor.scrollIntoView();
+        var theLine = new URLSearchParams(location.search).get('line');
+        highlighted.focus();
+        highlighted.setCursor(parseInt(theLine) - 1, 0);
+    }
+
 }
 
 function editorMain() {

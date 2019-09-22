@@ -127,7 +127,7 @@ div.exception {
     z-index: -9999;
 }
 
-.visually-hidden:focus, .visually-hidden:active {
+.visually-hidden:focus-within, .visually-hidden:active {
     position: unset;
     left: unset;
     top: unset;

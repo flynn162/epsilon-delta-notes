@@ -143,15 +143,19 @@ class Tree:
 class Content:
     def __init__(self):
         self.content_rows = {}
+        self.content_id = None
+
+    def register_content_id(self, content_id):
+        self.content_id = content_id
 
     def load_content_row(self, row):
         self.content_rows[row['id']] = row
 
-    def content_row_iter(self, id_start):
-        if id_start is None:
+    def content_row_iter(self):
+        if self.content_id is None:
             return
 
-        current = self.content_rows[id_start]
+        current = self.content_rows[self.content_id]
         while current is not None:
             yield current
             next_id = current['next_id']
@@ -160,11 +164,14 @@ class Content:
             else:
                 current = None
 
-    def content_list_iter(self, id_start):
-        return map(lambda r: r['content'], self.content_row_iter(id_start))
+    def content_list_iter(self):
+        return map(lambda r: r['content'], self.content_row_iter())
 
-    def content_id_iter(self, id_start):
-        return map(lambda r: r['id'], self.content_row_iter(id_start))
+    def content_id_iter(self):
+        return map(lambda r: r['id'], self.content_row_iter())
+
+    def content_pair_iter(self):
+        return zip(self.content_list_iter(), self.content_id_iter())
 
 def is_valid_slug(slug):
     return slug_re.match(slug)
