@@ -1,6 +1,7 @@
 :root {
     --purple-fg: #4b2e83;
     --gold-bg: #fff7e9;
+    --red-fg: #de0000;
 }
 
 html, body {
@@ -80,7 +81,7 @@ header {
 }
 
 a.dne {
-    color: #de0000;
+    color: var(--red-fg);
 }
 
 .has-right-margin {
@@ -96,6 +97,10 @@ a.dne {
 div.paragraph {
     margin-top: 1em;
     margin-bottom: 1em;
+}
+
+div.exception {
+    color: var(--red-fg);
 }
 
 .margin-note {

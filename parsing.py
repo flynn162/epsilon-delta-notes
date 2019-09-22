@@ -6,6 +6,8 @@ from pyparsing import alphas, nums, quotedString
 from pyparsing import nestedExpr, locatedExpr, ParserElement, ParseResults
 from sqlops import is_valid_slug, slug_to_link
 from itertools import chain
+import sys
+import traceback
 
 # make \n significant
 ParserElement.setDefaultWhitespaceChars(' \t')
@@ -153,10 +155,20 @@ class Parser(object):
         tokens = rescan_for_line_breaks(tokens)
         return iter(tokens)
 
-    @convert_error
     def parse_string(self, string):
-        tokens = self.tokenize(string)
-        return self.parse_into_list(tokens)
+        self.line_counter = 1
+
+        try:
+            tokens = self.tokenize(string)
+            return self.parse_into_list(tokens)
+        except ParserError as e:
+            ty, val, tb = sys.exc_info()
+            return self.exception_to_list(ty, val, tb)
+
+    def exception_to_list(self, ty, val, tb):
+        return Cons('p',
+                    [Cons('.exception',
+                          traceback.format_exception(ty, val, tb))])
 
     @convert_error
     def parse_into_list(self, tokens):
@@ -422,6 +434,16 @@ def compile_internal_link(params, acc):
                    (url_for('view'), slug_to_link(slug)))
         _compile_notes(placeholder or real_title, acc, use_p=False)
         acc.append('</a>')
+
+@handles('.exception')
+def compile_exception(params, acc):
+    acc.append('<div class="exception">')
+    for p in params:
+        for line in p.rstrip('\n').split('\n'):
+            acc.append('<code>')
+            acc.append(escape(line.replace(' ', '\xa0')))
+            acc.append('</code><br>\n')
+    acc.append('</div>')
 
 content = None
 result = None
