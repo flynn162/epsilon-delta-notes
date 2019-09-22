@@ -145,10 +145,6 @@ function changeA11yAttribs(divTextarea) {
     divTextarea.setAttribute('aria-multiline', 'true');
 }
 
-function focusOnTextareaInContainer(container) {
-    container.querySelector('div.textarea').focus();
-}
-
 function loadCm(el, value) {
     let cm = CodeMirror(el, {
         value: value,
@@ -269,9 +265,9 @@ function Editor() {
             return;
         }
         if (node.next != null) {
-            focusOnTextareaInContainer(node.next.data.container);
+            node.next.data.cm.focus();
         } else if (node.prev != null) {
-            focusOnTextareaInContainer(node.prev.data.container);
+            node.prev.data.cm.focus();
         } else {
             this.selected = null;
             this.disableButtons();
