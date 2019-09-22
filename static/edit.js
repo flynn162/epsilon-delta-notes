@@ -12,7 +12,7 @@ function Data(cmInstance, container) {
 function LinkedListIterator(linkedList) {
     this.current = linkedList.front;
     this.next = function () {
-        if (this.next == null) {
+        if (this.current == null) {
             return {done: true};
         } else {
             let result = this.current.data;
