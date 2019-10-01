@@ -119,21 +119,21 @@ class DbTitle(Db):
             for row in c:
                 parser_acc.put_title(row[0], row[1])
 
-def handle(app):
+def handle(app_config):
     slug = request.args.get(':')
     if not slug:
         return '<meta http-equiv="refresh" content="2; url=?:=home"> redirect'
     if not is_valid_slug(slug):
         return 'Invalid page ID'
 
-    with DbTree(app.config['db_uri']) as db:
+    with DbTree(app_config['db_uri']) as db:
         page_info = db.get_page_info(slug)
 
     tree_html = compile_tree(page_info.tree)
     parser = Parser(slug)
     ast_list = [parser.parse_string(string, content_id)
                 for string, content_id in page_info.content_pair_iter()]
-    with DbTitle(app.config['db_uri']) as db:
+    with DbTitle(app_config['db_uri']) as db:
         db.put_titles_in(parser.acc)
     notes_html_list = (compile_notes(cons, parser.acc) for cons in ast_list)
 

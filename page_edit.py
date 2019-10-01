@@ -183,14 +183,14 @@ class EditPageDbWriter(DbTree):
         WHERE id = ?
         """, (after_content_id,))
 
-def handle_get(app):
+def handle_get(app_config):
     slug = request.args.get(':')
     try:
         content_id = int(request.args.get('id', ''))
     except ValueError:
         content_id = None
 
-    with EditPageDbReader(app.config['db_uri']) as db:
+    with EditPageDbReader(app_config['db_uri']) as db:
         page_info = db.get_page_info(slug)
 
     title = 'Editing %s' % page_info.title
@@ -205,12 +205,12 @@ def handle_get(app):
                            content_pair_iter=page_info.content_pair_iter(),
                            content_lock=page_info.content_lock)
 
-def handle_post(app):
+def handle_post(app_config):
     text_list = request.form.getlist('text')
     if request.form.get('button') != 'submit':
         return 'You are not submitting'
 
-    with EditPageDbWriter(app.config['db_uri']) as db:
+    with EditPageDbWriter(app_config['db_uri']) as db:
         db.handle_change(request.form.get('old_slug', ''),
                          request.form.get('new_slug', ''),
                          request.form.get('title', ''),

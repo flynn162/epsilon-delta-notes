@@ -1,42 +1,151 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 from argparse import ArgumentParser
+from configparser import RawConfigParser
 from pathlib import Path
-import os
-import subprocess
-import signal
+import os, sys
 
-parser = ArgumentParser(description='Epsilon-Delta Notes launcher')
-parser.add_argument('db', nargs='?', help='the database (notes) to load')
-parser.add_argument('-i', '--img-dir', help='image directory')
-parser.add_argument('-c', '--config', help='config file')
-parser.add_argument('-b', '--bind', help='address to bind to')
-parser.add_argument('-p', '--port', help='port', type=int)
-args = parser.parse_args()
+import application
 
-base_dir = Path(__file__).resolve().parent
-os.environ['FLASK_APP'] = str(base_dir / 'application.py')
+def do_not_touch_app(method):
+    def result(self, key, *args):
+        if key in self.app.config:
+            raise RuntimeError('Name clashes with app.config[key]')
+        return method(self, key, *args)
 
-# must overwrite this environment variable
-os.environ['EDN_DB_FILE'] = args.db or ''
+    return result
 
-# if -c is not specified, the use the original env. var. value
-if args.config:
-    os.environ['EDN_CONFIG_FILE'] = args.config
-if args.img_dir:
-    os.environ['EDN_IMG_DIR'] = args.img_dir
+class ConfigLoader(object):
+    __slots__ = ('config', 'args', 'getters', 'lookup', 'internal', 'app')
 
-bind = args.bind or '127.0.0.1'
-port = 5000
-if args.port is not None:
-    if args.port < 1 or args.port > 65535:
-        raise ValueError('Port range')
-    port = args.port
+    def __init__(self, args):
+        self.args = args
+        self.app = None
+        self.internal = {}
+        self.lookup = {
+            'db_path': ('db', '', '',
+                        ConfigLoader.read_as_file),
+            'img_dir': ('img_dir', 'EDN_IMG_DIR', 'img_dir',
+                        ConfigLoader.read_as_directory),
+            'privacy': ('', '', 'privacy',
+                        None),
+            'terms'  : ('', '', 'terms',
+                        None)
+        }
 
-process = subprocess.Popen(['flask', 'run',
-                            '--port', str(port),
-                            '--host', bind])
-try:
-    process.wait()
-except KeyboardInterrupt:
-    process.send_signal(signal.SIGINT)
+    @staticmethod
+    def _join(path_str, relative_to):
+        return Path(os.path.join(path_str, relative_to)).absolute()
+
+    @staticmethod
+    def read_as_directory(dir_string, relative_to='.'):
+        path = ConfigLoader._join(dir_string, relative_to)
+        if not path.is_dir():
+            raise FileNotFoundError(path, 'is not a directory')
+        else:
+            return path
+
+    @staticmethod
+    def read_as_file(file_string, relative_to='.'):
+        path = ConfigLoader._join(file_string, relative_to)
+        if not path.is_file():
+            raise FileNotFoundError(path, 'is not a file')
+        else:
+            return path
+
+    def _get(self, key, func, out):
+        if not key:
+            return False
+        else:
+            result = func(key)
+            if result is not None:
+                out[0] = result
+                return True
+            else:
+                return False
+
+    def _get_variable(self, key):
+        out = [None]
+        pairs = zip(self.lookup[key], self.getters)
+        any(self._get(key, func, out) for (key, func) in pairs)
+        return out[0]
+
+    def _insert_into(self, config, key, chk):
+        result = self._get_variable(key)
+        if result is None or chk is None:
+            config[key] = result
+        else:
+            config[key] = chk(result)
+
+    def load(self):
+        if self.args.config:
+            config_path = ConfigLoader.read_as_file(self.args.config)
+            print(' * Loading config', config_path, file=sys.stderr)
+            self.config = RawConfigParser()
+            self.config.read(str(config_path))
+        else:
+            self.config = {'DEFAULT': {}}
+
+        self.getters = (self.args.__dict__.get,
+                        os.environ.get,
+                        self.config['default'].get)
+
+        for k, v in self.lookup.items():
+            self._insert_into(self.internal, k, v[-1])
+
+    def bind_with(self, app):
+        self.app = app
+
+    def __getitem__(self, key):
+        try:
+            return self.internal[key]
+        except KeyError:
+            pass
+
+        if self.app:
+            return self.internal[key]
+        else:
+            raise KeyError(key)
+
+    @do_not_touch_app
+    def __setitem__(self, key, value):
+        self.internal[key] = value
+
+    @do_not_touch_app
+    def __delitem__(self, key):
+        del self.internal[key]
+
+def port_or_die(maybe_integer):
+    if maybe_integer is None:
+        return 5000
+
+    result = int(maybe_integer)
+    if result < 1 or result > 65535:
+        raise ValueError('Port out of range')
+    else:
+        return result
+
+def localhost_default(bind):
+    return bind or '127.0.0.1'
+
+def main():
+    parser = ArgumentParser(description='Epsilon-Delta Notes launcher')
+    parser.add_argument('db', nargs='?', help='the database (notes) to load')
+    parser.add_argument('-i', '--img-dir', help='image directory')
+    parser.add_argument('-c', '--config', help='config file')
+    parser.add_argument('-b', '--bind', help='address to bind to')
+    parser.add_argument('-p', '--port', help='port', type=int)
+    args = parser.parse_args()
+
+    base_dir = Path(__file__).resolve().parent
+    os.environ['FLASK_APP'] = str(base_dir / 'application.py')
+
+    config = ConfigLoader(args)
+    config.load()
+    config.bind_with(application.app)
+    application.main(localhost_default(args.bind),
+                     port_or_die(args.port),
+                     config)
+
+if __name__ == '__main__':
+    main()
