@@ -8,7 +8,7 @@ res_dir = Path(__file__).absolute().parent
 slug_re = re.compile('^[a-zA-Z0-9_\\-]{1,100}$')
 
 toc_cols = ('id', 'parent_id', 'next_id', 'first_child_id', 'first_content_id',
-            'slug', 'title', 'mtime', 'content_lock')
+            'slug', 'title', 'mtime', 'unlisted', 'content_lock')
 toc_cols_fullname = map(lambda s: 'toc.{0} as {0}'.format(s), toc_cols)
 
 toc_cols_str = ', '.join(toc_cols)
@@ -66,11 +66,13 @@ class QueryBuilder:
         )
 
 class TreeNode:
-    def __init__(self, title, slug, children=None, selected=False):
+    def __init__(self, title, slug,
+                 children=None, selected=False, private=False):
         self.title = title
         self.slug = slug
         self.children = children
         self.selected = selected
+        self.private = private
 
     def __repr__(self):
         return '<TreeNode selected=%r title=%r slug=%r children=%r>' % (
@@ -132,7 +134,8 @@ class Tree:
             children = self.iterate_children(row)
             node = TreeNode(row['title'],
                             row['slug'],
-                            selected=(row['id'] == self.page_id))
+                            selected=(row['id'] == self.page_id),
+                            private=(row['unlisted'] == 1))
             self.make_children(children, node)
             acc.append(node)
         # detect broken linked list

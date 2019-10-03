@@ -95,6 +95,14 @@ You are editing
         <input type="text" id="slug" name="new_slug" value="{{ slug }}">
       </div>
 
+      <div class="metadata-container">
+        <label for="title">Unlisted</label>
+        <div>
+          <input type="checkbox" name="unlisted" value="1"
+                 {% if unlisted %} checked="1" {% endif %}>
+        </div>
+      </div>
+
       <!-- article content -->
       <div id="textboxes">
         {% for content, pid in content_pair_iter %}

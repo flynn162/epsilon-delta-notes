@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS "toc" (
        "slug" TEXT NOT NULL UNIQUE,
        "title" TEXT NOT NULL,
        "mtime" INTEGER,
+       "unlisted" INTEGER,
        "content_lock" TEXT,
        "first_content_id" INTEGER,
        PRIMARY KEY("id")

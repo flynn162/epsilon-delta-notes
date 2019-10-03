@@ -23,6 +23,9 @@
 <h1 class="has-right-margin">{{ title }}</h1>
 <!-- current path -->
 <div class="nav has-right-margin" id="path">
+  {%- if unlisted -%}
+  <span class="tag">Unlisted</span>
+  {%- endif -%}
   <p class="visually-hidden">
     [[ Your current path is: ]]
   </p>

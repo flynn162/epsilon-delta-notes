@@ -10,7 +10,7 @@ def compile_link(node, acc):
     acc.append('</div>')
 
 def _compile_tree_private(current, acc):
-    if current is None:
+    if current is None or (current.private and not current.selected):
         return
 
     class_names = 'selected' if current.selected else ''

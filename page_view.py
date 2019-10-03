@@ -34,6 +34,7 @@ class PageInfo(Content):
         self.mtime_str = None
         self.prev = None
         self.next = None
+        self.unlisted = False
 
     def load_tree_row(self, row):
         if row['next_id'] == self.page_id:
@@ -66,6 +67,7 @@ class PageInfo(Content):
         current_row = self.acc[self.page_id]
         self.next = row_to_link_tuple(self.acc.get(current_row['next_id']))
         self.title = current_row['title']
+        self.unlisted = current_row['unlisted'] == 1
 
         if current_row['mtime'] is not None:
             self.mtime_str = utc_to_local_with_title(current_row['mtime'])
@@ -144,6 +146,7 @@ def handle(app_config):
         'view.html',
         title=page_info.title,
         nav_edit=url_for('edit') + slug_to_link(slug),
+        unlisted=page_info.unlisted,
         directory_of_page=page_info.path,
         prev_article=page_info.prev,
         next_article=page_info.next,

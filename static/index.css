@@ -80,6 +80,13 @@ header {
     padding-right: 0.25em;
 }
 
+.tag {
+    margin-right: 1em;
+    background: #f0f0f0;
+    padding: 0 0.25em;
+    border-radius: 3px;
+}
+
 a.dne {
     color: var(--red-fg);
 }

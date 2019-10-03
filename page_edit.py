@@ -34,11 +34,18 @@ class EditPageDbWriter(DbTree):
         self.page_id = None
         self.content_pair_iter = None
 
-    def handle_change(self, old_slug, new_slug, title, text_list, lock):
+    def handle_change(self, form):
+        old_slug = form.get('old_slug', '')
+        new_slug = form.get('new_slug', '')
+        title = form.get('title', '')
+        text_list = form.getlist('text')
+        lock = form.get('content_lock', '')
+        unlisted = form.get('unlisted', '') == '1'
+
         with self.auto_rollback() as c:
             self.register(c, old_slug)
             self.check_and_change_lock(c, lock)
-            self.change_metadata(c, new_slug, title)
+            self.change_metadata(c, new_slug, title, unlisted)
             self.patch_page(c, self.generate_patch(text_list))
 
     def register(self, c, old_slug):
@@ -65,7 +72,7 @@ class EditPageDbWriter(DbTree):
                   (new_lock, self.page_id))
 
     @needs_page_id
-    def change_metadata(self, c, new_slug, new_title):
+    def change_metadata(self, c, new_slug, new_title, unlisted):
         new_slug = new_slug.strip()
         if not is_valid_slug(new_slug):
             raise IntegrityError('Invalid slug')
@@ -74,10 +81,13 @@ class EditPageDbWriter(DbTree):
         if not new_title:
             raise IntegrityError('You need a title')
 
+        unlisted = 1 if unlisted else 0
+
         c.execute("""
-        UPDATE toc SET slug = ?, title = ?, mtime = ?
+        UPDATE toc SET slug = ?, title = ?, mtime = ?, unlisted = ?
         WHERE id = ?
-        """, (new_slug, new_title, int(time.time()), self.page_id))
+        """, (new_slug, new_title, int(time.time()), unlisted,
+              self.page_id))
 
     def generate_patch(self, text_list):
         content_list = map(itemgetter(0), self.content_pair_iter())
@@ -201,6 +211,7 @@ def handle_get(app_config):
                            article_title=page_info.title,
                            slug=slug,
                            path=path,
+                           unlisted=page_info.unlisted,
                            focus=content_id,
                            content_pair_iter=page_info.content_pair_iter(),
                            content_lock=page_info.content_lock)
@@ -211,11 +222,7 @@ def handle_post(app_config):
         return 'You are not submitting'
 
     with EditPageDbWriter(app_config['db_uri']) as db:
-        db.handle_change(request.form.get('old_slug', ''),
-                         request.form.get('new_slug', ''),
-                         request.form.get('title', ''),
-                         request.form.getlist('text'),
-                         request.form.get('content_lock', ''))
+        db.handle_change(request.form)
 
     return redirect('{}{}'.format(url_for('view'),
                                   slug_to_link(request.form['new_slug'])))
