@@ -30,7 +30,13 @@
     [[ Your current path is: ]]
   </p>
   {%- for name, link in directory_of_page -%}
-  <a href="{{ link }}">{{ name }}</a><!-- no space
+  <a
+    {% if link == 'unlisted:' %}
+    title="Unlisted"
+    {% else %}
+    href="{{ link }}"
+    {% endif %}
+    >{{ name }}</a><!-- no space
   --><span class="sep">/</span>
   {%- endfor -%}
 </div>

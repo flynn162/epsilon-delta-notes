@@ -11,6 +11,8 @@ tree_query_cte = str(QueryBuilder().forward().backward().upward().downward())
 def row_to_link_tuple(row):
     if not row:
         return None
+    elif row['unlisted']:
+        return '...', 'unlisted:'
     else:
         return row['title'], slug_to_link(row['slug'])
 

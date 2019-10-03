@@ -67,6 +67,11 @@ header {
     text-decoration: underline;
 }
 
+.nav a:not([href]) {
+    text-decoration: none;
+    cursor: default;
+}
+
 #prev-next, #footer {
     text-align: right;
 }
