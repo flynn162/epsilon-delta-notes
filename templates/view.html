@@ -26,28 +26,31 @@
   <p class="visually-hidden">
     [[ Your current path is: ]]
   </p>
-  {% for name, link in directory_of_page %}
-  <a href="{{ link }}">{{ name }}</a>
-  <span class="sep">/</span>
-  {% endfor %}
+  {%- for name, link in directory_of_page -%}
+  <a href="{{ link }}">{{ name }}</a><!-- no space
+  --><span class="sep">/</span>
+  {%- endfor -%}
 </div>
 <!-- navigating: previous and next -->
 <div class="nav has-right-margin" id="prev-next">
+  <!-- accessibility component -->
+  {% if prev_article and next_article %}
   <p class="visually-hidden">
     [[ Sibling articles are: ]]
   </p>
+  {% endif %}
   <!-- previous article -->
-  {% if prev_article is not none %}
+  {% if prev_article %}
   <span>Prev:
     <a href="{{ prev_article[1] }}">{{ prev_article[0] }}</a>
   </span>
   {% endif %}
   <!-- separator -->
-  {% if prev_article is not none and next_article is not none %}
+  {% if prev_article and next_article %}
   <span class="sep">|</span>
   {% endif %}
   <!-- next article -->
-  {% if next_article is not none %}
+  {% if next_article %}
   <span>Next:
     <a href="{{ next_article[1] }}">{{ next_article[0] }}</a>
   </span>
