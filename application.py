@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, escape
 import os, sys, signal
 
-import page_view, page_edit
+import page_view, page_edit, page_new
 
 app = Flask(__name__)
 app.secret_key = os.urandom(128 // 8)
@@ -26,7 +26,10 @@ def edit():
 
 @app.route('/new', methods=['GET', 'POST'])
 def new():
-    return 'I can use new as a function name in Python!'
+    if request.method == 'GET':
+        return page_new.handle_get(app_config)
+    else:
+        return page_new.handle_post(app_config)
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():

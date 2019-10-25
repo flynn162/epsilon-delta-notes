@@ -1,0 +1,20 @@
+{% extends "with-sidebar.html" %}
+
+{% block right %}
+<form method="POST">
+  <div class="metadata-container">
+    <label for="slug">Slug</label>
+    <input class="text" name="slug" id="slug">
+  </div>
+  <div class="metadata-container">
+    <label for="title">Title</label>
+    <input class="text" name="title" id="title">
+  </div>
+  <div class="metadata-container">
+    <label for="parent_slug">Parent slug</label>
+    <input class="text" name="parent_slug" id="parent_slug">
+  </div>
+
+  <button type="submit">Submit</button>
+</form>
+{% endblock %}

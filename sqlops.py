@@ -191,6 +191,7 @@ class Db:
         self.conn.row_factory = sqlite3.Row
         c = self.conn.cursor()
         c.execute('PRAGMA foreign_keys = ON')
+        self.create_tables()
 
     @contextmanager
     def auto_rollback(self):
