@@ -21,7 +21,7 @@ list_closer = locatedExpr(Word('}|') | Word('}'))
 CMD = locatedExpr(Word(alphas + nums + '-_', max=100))
 list_header = Literal('@') + Optional(CMD) + list_opener
 
-text_body = CharsNotIn('@\n|{}')
+text_body = CharsNotIn('@\n|{}') | '|'
 line_break = Combine(OneOrMore(Literal('\n')))
 list_stuff = list_header | list_opener | list_closer
 scribble = OneOrMore(text_body | line_break | list_stuff)

@@ -40,7 +40,7 @@ class PageInfo(Content):
 
     def load_tree_row(self, row):
         if row['next_id'] == self.page_id:
-            self.prev = row_to_link_tuple(item)
+            self.prev = row_to_link_tuple(row)
         if row['id'] == self.page_id:
             self.content_lock = row['content_lock']
 
