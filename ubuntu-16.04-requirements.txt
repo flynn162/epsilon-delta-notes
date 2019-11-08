@@ -1,3 +1,5 @@
-flask==0.10.1
-pyparsing==2.0.3
-pytest==2.8.7
+## For testing only. Do not use this file. Use `requirements.txt` instead.
+
+# flask==0.10.1
+# pyparsing==2.0.3
+# pytest==2.8.7
