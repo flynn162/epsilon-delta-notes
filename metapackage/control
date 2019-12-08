@@ -1,0 +1,25 @@
+Section: misc
+Priority: optional
+Homepage: https://github.com/flynn162/epsilon-delta-notes
+Standards-Version: 3.9.2
+
+Package: epsilon-delta-notes-meta
+Version: 0.0.1~dev
+Maintainer: Flynn Liu <flynn@example.com>
+
+Depends: fonts-font-awesome, node-katex, libjs-codemirror,
+         python3 (>= 3.5), python3-flask (>= 0.10.1), 
+         python3-pyparsing (>= 2.0.3), python3-pytest (>= 2.8.7)
+
+Architecture: all
+
+# Copyright: <copyright file; defaults to GPL2>
+# Changelog: <changelog file; defaults to a generic changelog>
+# Readme: <README.Debian file; defaults to a generic one>
+# Extra-Files: <comma-separated list of additional files for the doc directory>
+# Links: <pair of space-separated paths; First is path symlink points at, second is filename of link>
+# Files: <pair of space-separated paths; First is file to include, second is destination>
+#  <more pairs, if there's more than one file to include. Notice the starting space>
+
+Description: Metapackage including all dependencies of Epsilon-Delta Notes
+ This package is intended for development use only.

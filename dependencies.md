@@ -20,3 +20,20 @@ Epsilon-Delta Notes depends on the following packages
 - Create a symlink `static/codemirror-dist` that points to your CodeMirror installation
 - Important folders in the top level of your linked directory: `lib/`, `addon/`
 - On Ubuntu, you can install the `libjs-codemirror` package and make a symlink to `/usr/share/javascript/codemirror`
+
+For your convenience, here is a bash snippet that does exactly the same thing.
+
+```sh
+MYROOT=""
+ln -s "$MYROOT"/usr/share/fonts-font-awesome    static/font-awesome-4-dist
+ln -s "$MYROOT"/usr/lib/nodejs/katex/dist       static/katex-dist
+ln -s "$MYROOT"/usr/share/javascript/codemirror static/codemirror-dist
+```
+
+There is a metapackage control file in `metapackage/` that describes all necessary dependencies. To build and install the metapackage, use:
+
+```sh
+equivs-build control
+sudo dpkg -i *.deb
+sudo apt install --fix-missing
+```

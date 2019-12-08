@@ -3,3 +3,5 @@ __pycache__
 *.pyc
 static/*-dist
 test.db
+*.deb
+.DS_Store
