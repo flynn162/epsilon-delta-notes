@@ -1,7 +1,15 @@
+# Python
 .cache
 __pycache__
 *.pyc
+# Javascript libraries
 static/*-dist
+# test data
 test.db
 *.deb
+# Doxygen
+Doxyfile
+/latex/
+/html/
+# File browser metadata
 .DS_Store
