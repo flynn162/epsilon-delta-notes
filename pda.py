@@ -14,7 +14,8 @@ class Stack(IntEnum):
     DOLLAR = 0,
     OPEN = 1
     OPEN_ALT = 2,
-    CMD = 3,
+    CMD_OPEN = 3,
+    CMD_OPEN_ALT = 4,
 
 class Input(IntEnum):
     FALLBACK = 0,
@@ -27,21 +28,9 @@ class Bytecode(IntEnum):
     ADD_STRING = 3,
     ADD_LINES = 4,
 
-InputTuple = namedtuple('InputTuple', ('text', 'param'))
-Edge = namedtuple('Edge', ('symbol', 'next_state', 'pop', 'push'))
+from tokenizing import InputTuple, token_iter, ParserError
 
-def token_iter(tokens):
-    for t in tokens:
-        text = None
-        param = None
-        if isinstance(t, str):
-            text = t
-        else:
-            text = t.text
-            param = t.param
-        yield text, param
-
-class PDAError(RuntimeError):
+class PDAError(ParserError):
     pass
 
 class Registry:
@@ -89,11 +78,11 @@ class BasePDA:
 
         # Push new element onto the stack
         if new_stack_top is not None:
-            self.stack.pushleft(new_stack_top)
+            self.stack.appendleft(new_stack_top)
 
         # Call the leaving handler
         if self.state != to_state:
-            handler = Registry.leaving_dict.get(self.state)
+            handler = Registry.leaving_handlers.get(self.state)
             if handler is not None:
                 handler(self)
 
@@ -128,7 +117,7 @@ class BasePDA:
                 line += param
 
         if not self.is_in_accepting_state():
-            raise PDAError(line, 'Unexpected content after this token')
+            raise PDAError(line, 'Expect more content after this token')
         else:
             return self.finish_up()
 
@@ -149,6 +138,10 @@ class PDA(BasePDA):
         self.leaving_text()
         return self.execute_asm()
 
+    def _output(self, instruction):
+        self._flush_and_reset_string_acc()
+        self.asm.append(instruction)
+
     def _flush_and_reset_string_acc(self):
         self.string_acc.seek(0)
         full_text = self.string_acc.read()
@@ -166,14 +159,14 @@ class PDA(BasePDA):
         # check if we are closing anything
         if self.text == '}':
             if self.stack[0] == Stack.CMD_OPEN:
-                self.asm.append((Bytecode.CLOSE_LIST,))
+                self._output((Bytecode.CLOSE_LIST,))
                 return self.route(State.TEXT, Stack.CMD_OPEN, None)
             elif self.stack[0] == Stack.OPEN:
                 self.string_acc.write(self.text)
                 return self.route(State.TEXT, Stack.OPEN, None)
         elif self.text == '}|':
             if self.stack[0] == Stack.CMD_OPEN_ALT:
-                self.asm.append((Bytecode.CLOSE_LIST,))
+                self._output((Bytecode.CLOSE_LIST,))
                 return self.route(State.TEXT, Stack.CMD_OPEN_ALT, None)
             elif self.stack[0] == Stack.OPEN_ALT:
                 self.string_acc.write(self.text)
@@ -194,7 +187,7 @@ class PDA(BasePDA):
         if self.text == '\n':
             # self.param is set to the number of consecutive \n's
             self._flush_and_reset_string_acc()
-            self.asm.append((Bytecode.ADD_LINES, self.param))
+            self._output((Bytecode.ADD_LINES, self.param))
         else:
             self.string_acc.write(self.text)
 
@@ -210,7 +203,7 @@ class PDA(BasePDA):
             return self.route(State.TEXT, None, Stack.CMD_ALT_OPEN)
         else:
             self.on_cmd_name()
-            return self.route(State.TEXT, None, None)
+            return self.route(State.CMD_NAME, None, None)  # self loop
 
     def on_cmd_name(self):
         if self.text.isspace():
@@ -221,11 +214,11 @@ class PDA(BasePDA):
             raise PDAError('Symbol')
 
     @Registry.leaving(State.CMD_NAME)
-    def leaving_cmd_name(self, text, param, line, chosen_edge):
-        self.asm.append((Bytecode.OPEN_LIST, self.line))
+    def leaving_cmd_name(self):
+        self._output((Bytecode.OPEN_LIST, self.line))
         if self.symbol_acc.tell() > 0:
             self.symbol_acc.seek(0)
-            self.asm.append((Bytecode.ADD_SYMBOL, self.symbol_acc.read()))
+            self._output((Bytecode.ADD_SYMBOL, self.symbol_acc.read()))
             self.symbol_acc.seek(0)
             self.symbol_acc.truncate(0)
 
